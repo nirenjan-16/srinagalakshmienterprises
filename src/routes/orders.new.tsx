@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Trash2, Plus, ImageIcon } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveImageUrls } from "@/lib/productImages";
+import { searchProductImage } from "@/lib/imageSearch.functions";
 
 export const Route = createFileRoute("/orders/new")({
   head: () => ({ meta: [{ title: "New Order — OrderDesk" }] }),
@@ -44,6 +46,7 @@ const newLine = (): LineItem => ({
 
 function NewOrderPage() {
   const navigate = useNavigate();
+  const fetchImage = useServerFn(searchProductImage);
   const [products, setProducts] = useState<Product[]>([]);
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<Array<{ name: string; phone: string | null }>>([]);
@@ -132,17 +135,27 @@ function NewOrderPage() {
     ).filter((name) => !products.some((p) => p.name.toLowerCase() === name.toLowerCase()));
 
     if (newProductNames.length > 0) {
-      const inserts = newProductNames.map((name) => {
-        const sourceLine = valid.find(
-          (l) => l.product_name.trim().toLowerCase() === name.toLowerCase(),
-        );
-        const rate = sourceLine ? parseFloat(sourceLine.rate) || 0 : 0;
-        return {
-          name,
-          default_mrp: sourceLine?.unit_type === "Box" ? 0 : rate,
-          box_mrp: sourceLine?.unit_type === "Box" ? rate || null : null,
-        };
-      });
+      const inserts = await Promise.all(
+        newProductNames.map(async (name) => {
+          const sourceLine = valid.find(
+            (l) => l.product_name.trim().toLowerCase() === name.toLowerCase(),
+          );
+          const rate = sourceLine ? parseFloat(sourceLine.rate) || 0 : 0;
+          let image_url: string | null = null;
+          try {
+            const res = await fetchImage({ data: { query: `${name} product pack` } });
+            image_url = res?.url ?? null;
+          } catch {
+            /* ignore — leave image blank */
+          }
+          return {
+            name,
+            default_mrp: sourceLine?.unit_type === "Box" ? 0 : rate,
+            box_mrp: sourceLine?.unit_type === "Box" ? rate || null : null,
+            image_url,
+          };
+        }),
+      );
       const { error: prodErr } = await supabase.from("products").insert(inserts);
       if (prodErr) {
         alert("Failed to add new products: " + prodErr.message);
