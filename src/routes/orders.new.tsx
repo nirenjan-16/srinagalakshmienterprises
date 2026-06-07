@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Trash2, Plus, ImageIcon } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveImageUrls } from "@/lib/productImages";
+import { searchProductImage } from "@/lib/imageSearch.functions";
 
 export const Route = createFileRoute("/orders/new")({
   head: () => ({ meta: [{ title: "New Order — OrderDesk" }] }),
