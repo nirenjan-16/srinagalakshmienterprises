@@ -67,6 +67,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           customer_name: string
           delivered_at: string | null
@@ -80,6 +81,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           customer_name: string
           delivered_at?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           customer_name?: string
           delivered_at?: string | null
@@ -114,6 +117,7 @@ export type Database = {
           created_at: string
           default_mrp: number
           id: string
+          image_url: string | null
           name: string
           updated_at: string
         }
@@ -123,6 +127,7 @@ export type Database = {
           created_at?: string
           default_mrp?: number
           id?: string
+          image_url?: string | null
           name: string
           updated_at?: string
         }
@@ -132,6 +137,7 @@ export type Database = {
           created_at?: string
           default_mrp?: number
           id?: string
+          image_url?: string | null
           name?: string
           updated_at?: string
         }
