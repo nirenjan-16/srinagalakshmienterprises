@@ -169,7 +169,28 @@ function NewOrderPage() {
     const findByName = (name: string) =>
       refreshedProducts.find((p) => p.name.toLowerCase() === name.trim().toLowerCase());
 
-    const orderNumber = `ORD-${Date.now()}`;
+    const { data: lastOrder } = await supabase
+  .from("orders")
+  .select("order_number")
+  .order("created_at", { ascending: false })
+  .limit(1);
+const lastNum = lastOrder?.[0]?.order_number
+  ? parseInt(lastOrder[0].order_number.replace("ORD-", "")) || 0
+  : 0;
+const orderNumber = `ORD-${String(lastNum + 1).padStart(3, "0")}`;
+const { data: order, error } = await supabase
+  .from("orders")
+  .insert({
+    order_number: orderNumber,
+    customer_name: customer.trim(),
+    to_number: toNumber.trim() || null,
+    phone: phone.trim() || null,
+    order_date: orderDate,
+    status: "Pending",
+    total_amount: total,
+  })
+  .select("id")
+  .single();
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
