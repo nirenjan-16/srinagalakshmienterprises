@@ -201,18 +201,35 @@ function NewOrderPage() {
                       <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
                         Product
                       </label>
-                      <select
-                        value={line.product_id}
-                        onChange={(e) => updateLine(line.key, { product_id: e.target.value })}
+                      <input
+                        list={`products-${line.key}`}
+                        value={line.product_name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const match = products.find((p) => p.name === val);
+                          updateLine(line.key, {
+                            product_name: val,
+                            product_id: match?.id ?? "",
+                            ...(match
+                              ? {
+                                  rate:
+                                    line.unit_type === "Box"
+                                      ? match.box_mrp != null
+                                        ? String(match.box_mrp)
+                                        : ""
+                                      : String(match.default_mrp),
+                                }
+                              : {}),
+                          });
+                        }}
+                        placeholder="Type or select a product"
                         className="input"
-                      >
-                        <option value="">Select…</option>
+                      />
+                      <datalist id={`products-${line.key}`}>
                         {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
+                          <option key={p.id} value={p.name} />
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
