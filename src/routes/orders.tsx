@@ -56,7 +56,7 @@ function OrdersPage() {
   }, []);
 
   const updateStatus = async (id: string, status: string) => {
-    const patch: Record<string, unknown> = { status };
+    const patch: { status: string; delivered_at?: string } = { status };
     if (status === "Delivered") patch.delivered_at = new Date().toISOString();
     await supabase.from("orders").update(patch).eq("id", id);
     load();
