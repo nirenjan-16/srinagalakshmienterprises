@@ -25,6 +25,7 @@ interface Product {
 interface LineItem {
   key: string;
   product_id: string;
+  product_name: string;
   unit_type: "Pack" | "Box";
   quantity: string;
   rate: string;
@@ -33,6 +34,7 @@ interface LineItem {
 const newLine = (): LineItem => ({
   key: Math.random().toString(36).slice(2),
   product_id: "",
+  product_name: "",
   unit_type: "Pack",
   quantity: "1",
   rate: "",
@@ -63,9 +65,9 @@ function NewOrderPage() {
       prev.map((l) => {
         if (l.key !== key) return l;
         const next = { ...l, ...patch };
-        // auto-fill rate on product or unit change
         const product = productMap[next.product_id];
         if (product && (patch.product_id !== undefined || patch.unit_type !== undefined)) {
+          next.product_name = product.name;
           next.rate =
             next.unit_type === "Box"
               ? product.box_mrp != null
@@ -88,9 +90,11 @@ function NewOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const valid = lines.filter((l) => l.product_id && parseFloat(l.quantity) > 0);
+    const valid = lines.filter(
+      (l) => (l.product_id || l.product_name.trim()) && parseFloat(l.quantity) > 0,
+    );
     if (valid.length === 0) {
-      alert("Add at least one product line.");
+      alert("Add at least one product line with a name and quantity.");
       return;
     }
     setSaving(true);
@@ -122,8 +126,8 @@ function NewOrderPage() {
       const r = parseFloat(l.rate) || 0;
       return {
         order_id: order.id,
-        product_id: l.product_id,
-        product_name: product?.name ?? "",
+        product_id: l.product_id || null,
+        product_name: product?.name ?? l.product_name.trim(),
         unit_type: l.unit_type,
         quantity: q,
         rate: r,
@@ -197,18 +201,35 @@ function NewOrderPage() {
                       <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
                         Product
                       </label>
-                      <select
-                        value={line.product_id}
-                        onChange={(e) => updateLine(line.key, { product_id: e.target.value })}
+                      <input
+                        list={`products-${line.key}`}
+                        value={line.product_name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const match = products.find((p) => p.name === val);
+                          updateLine(line.key, {
+                            product_name: val,
+                            product_id: match?.id ?? "",
+                            ...(match
+                              ? {
+                                  rate:
+                                    line.unit_type === "Box"
+                                      ? match.box_mrp != null
+                                        ? String(match.box_mrp)
+                                        : ""
+                                      : String(match.default_mrp),
+                                }
+                              : {}),
+                          });
+                        }}
+                        placeholder="Type or select a product"
                         className="input"
-                      >
-                        <option value="">Select…</option>
+                      />
+                      <datalist id={`products-${line.key}`}>
                         {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
+                          <option key={p.id} value={p.name} />
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">

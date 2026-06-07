@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { signIn } from "@/lib/auth";
+import logoAsset from "@/assets/sri-nagalakshmi-logo.svg.asset.json";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -28,6 +29,11 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lg">
         <div className="mb-6 text-center">
+          <img
+            src={logoAsset.url}
+            alt="Sri Nagalakshmi Enterprises"
+            className="mx-auto mb-4 h-24 w-24 rounded-xl shadow-md"
+          />
           <h1
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             className="text-2xl font-semibold text-brand"
