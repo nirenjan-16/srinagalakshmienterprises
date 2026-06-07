@@ -216,7 +216,26 @@ function NewOrderPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <section className="grid gap-4 rounded-xl border border-border bg-card p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Customer name" required>
-              <input required value={customer} onChange={(e) => setCustomer(e.target.value)} className="input" />
+              <input
+                required
+                list="customers-list"
+                value={customer}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomer(val);
+                  const match = customers.find(
+                    (c) => c.name.toLowerCase() === val.toLowerCase(),
+                  );
+                  if (match && !phone && match.phone) setPhone(match.phone);
+                }}
+                className="input"
+                placeholder="Start typing…"
+              />
+              <datalist id="customers-list">
+                {customers.map((c) => (
+                  <option key={c.name} value={c.name} />
+                ))}
+              </datalist>
             </Field>
             <Field label="TO Number">
               <input value={toNumber} onChange={(e) => setToNumber(e.target.value)} className="input" />
