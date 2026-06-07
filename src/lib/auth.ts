@@ -1,52 +1,78 @@
-// Simple localStorage-based auth (single-user internal tool).
-const CREDS_KEY = "orderdesk_credentials";
+// DB-backed auth using Supabase users table + bcryptjs password verification.
+import { supabase } from "@/integrations/supabase/client";
+import bcrypt from "bcryptjs";
+
 const SESSION_KEY = "orderdesk_session";
-const DEFAULT_USERNAME = "admin";
-const DEFAULT_PASSWORD = "admin123";
-
-interface Creds {
-  username: string;
-  password: string;
-}
-
-function readCreds(): Creds {
-  if (typeof window === "undefined") return { username: DEFAULT_USERNAME, password: DEFAULT_PASSWORD };
-  try {
-    const raw = localStorage.getItem(CREDS_KEY);
-    if (!raw) return { username: DEFAULT_USERNAME, password: DEFAULT_PASSWORD };
-    return JSON.parse(raw) as Creds;
-  } catch {
-    return { username: DEFAULT_USERNAME, password: DEFAULT_PASSWORD };
-  }
-}
-
-export function getCurrentUsername(): string {
-  return readCreds().username;
-}
+const SESSION_USER_KEY = "orderdesk_username";
 
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false;
   return localStorage.getItem(SESSION_KEY) === "active";
 }
 
-export function signIn(username: string, password: string): boolean {
-  const creds = readCreds();
-  if (username.trim() === creds.username && password === creds.password) {
-    localStorage.setItem(SESSION_KEY, "active");
-    return true;
-  }
-  return false;
+export function getCurrentUsername(): string {
+  return localStorage.getItem(SESSION_USER_KEY) ?? "admin";
 }
 
 export function signOut(): void {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_USER_KEY);
 }
 
-export function updateCredentials(next: Partial<Creds>): void {
-  const current = readCreds();
-  const updated: Creds = {
-    username: next.username?.trim() || current.username,
-    password: next.password || current.password,
-  };
-  localStorage.setItem(CREDS_KEY, JSON.stringify(updated));
+export async function signIn(username: string, password: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("username, password_hash")
+      .eq("username", username.trim())
+      .limit(1);
+
+    if (error || !data || data.length === 0) return false;
+
+    const user = data[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+
+    if (valid) {
+      localStorage.setItem(SESSION_KEY, "active");
+      localStorage.setItem(SESSION_USER_KEY, user.username);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function updateCredentials(
+  newUsername?: string,
+  newPassword?: string
+): Promise<{ success: boolean; error?: string }> {
+  const currentUsername = getCurrentUsername();
+
+  const updatePayload: { username?: string; password_hash?: string } = {};
+
+  if (newUsername && newUsername.trim() !== currentUsername) {
+    updatePayload.username = newUsername.trim();
+  }
+
+  if (newPassword) {
+    updatePayload.password_hash = await bcrypt.hash(newPassword, 10);
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return { success: true };
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update(updatePayload)
+    .eq("username", currentUsername);
+
+  if (error) return { success: false, error: error.message };
+
+  if (updatePayload.username) {
+    localStorage.setItem(SESSION_USER_KEY, updatePayload.username);
+  }
+
+  return { success: true };
 }
