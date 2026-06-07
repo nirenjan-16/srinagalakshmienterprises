@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth";
+import logoAsset from "@/assets/sri-nagalakshmi-logo.svg.asset.json";
 
 const navLinks = [
   { to: "/", label: "Dashboard" },
