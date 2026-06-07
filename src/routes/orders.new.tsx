@@ -46,6 +46,7 @@ const newLine = (): LineItem => ({
 
 function NewOrderPage() {
   const navigate = useNavigate();
+  const fetchImage = useServerFn(searchProductImage);
   const [products, setProducts] = useState<Product[]>([]);
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<Array<{ name: string; phone: string | null }>>([]);
