@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, Archive } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
+import { purgeOldArchivedOrders } from "@/lib/archiveCleanup";
 
 export const Route = createFileRoute("/orders/")({
   head: () => ({ meta: [{ title: "Orders — OrderDesk" }] }),
@@ -24,6 +25,7 @@ interface OrderRow {
   status: string;
   total_amount: number;
   delivered_at: string | null;
+  cancelled_at: string | null;
   order_items: Array<{
     product_name: string;
     unit_type: string;
@@ -33,7 +35,7 @@ interface OrderRow {
   }>;
 }
 
-const STATUSES = ["Pending", "Confirmed", "Delivered", "Cancelled"];
+const ACTIVE_STATUSES = ["Pending", "Confirmed", "Delivered", "Cancelled"];
 
 function OrdersPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -41,11 +43,13 @@ function OrdersPage() {
 
   const load = async () => {
     setLoading(true);
+    await purgeOldArchivedOrders();
     const { data } = await supabase
       .from("orders")
       .select(
-        "id, order_number, customer_name, to_number, phone, order_date, status, total_amount, delivered_at, order_items(product_name, unit_type, quantity, rate, amount)",
+        "id, order_number, customer_name, to_number, phone, order_date, status, total_amount, delivered_at, cancelled_at, order_items(product_name, unit_type, quantity, rate, amount)",
       )
+      .in("status", ["Pending", "Confirmed"])
       .order("created_at", { ascending: false });
     setOrders((data as OrderRow[]) ?? []);
     setLoading(false);
@@ -56,8 +60,13 @@ function OrdersPage() {
   }, []);
 
   const updateStatus = async (id: string, status: string) => {
-    const patch: { status: string; delivered_at?: string } = { status };
+    const patch: { status: string; delivered_at?: string | null; cancelled_at?: string | null } = { status };
     if (status === "Delivered") patch.delivered_at = new Date().toISOString();
+    if (status === "Cancelled") patch.cancelled_at = new Date().toISOString();
+    if (status === "Pending" || status === "Confirmed") {
+      patch.delivered_at = null;
+      patch.cancelled_at = null;
+    }
     await supabase.from("orders").update(patch).eq("id", id);
     load();
   };
@@ -125,9 +134,15 @@ function OrdersPage() {
             className="text-2xl font-semibold"
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
           >
-            Orders
+            Active Orders
           </h1>
           <div className="flex gap-2">
+            <Link
+              to="/orders/archive"
+              className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent"
+            >
+              <Archive className="h-4 w-4" /> Archive
+            </Link>
             <button
               onClick={exportCsv}
               className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent"
@@ -166,7 +181,7 @@ function OrdersPage() {
               ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                    No orders yet.
+                    No active orders. Delivered and cancelled orders are in the Archive.
                   </td>
                 </tr>
               ) : (
@@ -195,7 +210,7 @@ function OrdersPage() {
                         onChange={(e) => updateStatus(o.id, e.target.value)}
                         className="rounded-md border border-input bg-background px-2 py-1 text-xs"
                       >
-                        {STATUSES.map((s) => (
+                        {ACTIVE_STATUSES.map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
