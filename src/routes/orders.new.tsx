@@ -25,6 +25,7 @@ interface Product {
 interface LineItem {
   key: string;
   product_id: string;
+  product_name: string;
   unit_type: "Pack" | "Box";
   quantity: string;
   rate: string;
@@ -33,6 +34,7 @@ interface LineItem {
 const newLine = (): LineItem => ({
   key: Math.random().toString(36).slice(2),
   product_id: "",
+  product_name: "",
   unit_type: "Pack",
   quantity: "1",
   rate: "",
