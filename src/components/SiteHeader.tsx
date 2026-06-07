@@ -6,6 +6,7 @@ import logoAsset from "@/assets/sri-nagalakshmi-logo.svg.asset.json";
 const navLinks = [
   { to: "/", label: "Dashboard" },
   { to: "/orders", label: "Orders" },
+  { to: "/orders/archive", label: "Archive" },
   { to: "/products", label: "Products" },
   { to: "/settings", label: "Settings" },
 ] as const;
