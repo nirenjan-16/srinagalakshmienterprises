@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, ImageIcon } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveImageUrls } from "@/lib/productImages";
 
 export const Route = createFileRoute("/orders/new")({
   head: () => ({ meta: [{ title: "New Order — OrderDesk" }] }),
@@ -20,6 +21,7 @@ interface Product {
   default_mrp: number;
   box_size: number | null;
   box_mrp: number | null;
+  image_url: string | null;
 }
 
 interface LineItem {
@@ -43,6 +45,7 @@ const newLine = (): LineItem => ({
 function NewOrderPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [customer, setCustomer] = useState("");
   const [toNumber, setToNumber] = useState("");
   const [phone, setPhone] = useState("");
@@ -55,7 +58,11 @@ function NewOrderPage() {
       .from("products")
       .select("*")
       .order("name")
-      .then(({ data }) => setProducts((data as Product[]) ?? []));
+      .then(async ({ data }) => {
+        const list = (data as Product[]) ?? [];
+        setProducts(list);
+        setImageMap(await resolveImageUrls(list.map((p) => p.image_url)));
+      });
   }, []);
 
   const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
