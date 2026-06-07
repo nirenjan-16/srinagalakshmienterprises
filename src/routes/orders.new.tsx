@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, ImageIcon } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveImageUrls } from "@/lib/productImages";
 
 export const Route = createFileRoute("/orders/new")({
   head: () => ({ meta: [{ title: "New Order — OrderDesk" }] }),
@@ -20,6 +21,7 @@ interface Product {
   default_mrp: number;
   box_size: number | null;
   box_mrp: number | null;
+  image_url: string | null;
 }
 
 interface LineItem {
@@ -43,6 +45,7 @@ const newLine = (): LineItem => ({
 function NewOrderPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [customer, setCustomer] = useState("");
   const [toNumber, setToNumber] = useState("");
   const [phone, setPhone] = useState("");
@@ -55,7 +58,11 @@ function NewOrderPage() {
       .from("products")
       .select("*")
       .order("name")
-      .then(({ data }) => setProducts((data as Product[]) ?? []));
+      .then(async ({ data }) => {
+        const list = (data as Product[]) ?? [];
+        setProducts(list);
+        setImageMap(await resolveImageUrls(list.map((p) => p.image_url)));
+      });
   }, []);
 
   const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
@@ -195,8 +202,21 @@ function NewOrderPage() {
                 return (
                   <div
                     key={line.key}
-                    className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]"
+                    className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_auto]"
                   >
+                    <div className="flex items-end">
+                      {product?.image_url && imageMap[product.image_url] ? (
+                        <img
+                          src={imageMap[product.image_url]}
+                          alt={product.name}
+                          className="h-14 w-14 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                          <ImageIcon className="h-5 w-5" />
+                        </div>
+                      )}
+                    </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
                         Product

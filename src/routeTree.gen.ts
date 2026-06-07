@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders.index'
 import { Route as OrdersNewRouteImport } from './routes/orders.new'
+import { Route as OrdersArchiveRouteImport } from './routes/orders.archive'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -46,12 +47,18 @@ const OrdersNewRoute = OrdersNewRouteImport.update({
   path: '/orders/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrdersArchiveRoute = OrdersArchiveRouteImport.update({
+  id: '/orders/archive',
+  path: '/orders/archive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/products': typeof ProductsRoute
   '/settings': typeof SettingsRoute
+  '/orders/archive': typeof OrdersArchiveRoute
   '/orders/new': typeof OrdersNewRoute
   '/orders/': typeof OrdersIndexRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/products': typeof ProductsRoute
   '/settings': typeof SettingsRoute
+  '/orders/archive': typeof OrdersArchiveRoute
   '/orders/new': typeof OrdersNewRoute
   '/orders': typeof OrdersIndexRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/products': typeof ProductsRoute
   '/settings': typeof SettingsRoute
+  '/orders/archive': typeof OrdersArchiveRoute
   '/orders/new': typeof OrdersNewRoute
   '/orders/': typeof OrdersIndexRoute
 }
@@ -79,16 +88,25 @@ export interface FileRouteTypes {
     | '/login'
     | '/products'
     | '/settings'
+    | '/orders/archive'
     | '/orders/new'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/products' | '/settings' | '/orders/new' | '/orders'
+  to:
+    | '/'
+    | '/login'
+    | '/products'
+    | '/settings'
+    | '/orders/archive'
+    | '/orders/new'
+    | '/orders'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/products'
     | '/settings'
+    | '/orders/archive'
     | '/orders/new'
     | '/orders/'
   fileRoutesById: FileRoutesById
@@ -98,6 +116,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProductsRoute: typeof ProductsRoute
   SettingsRoute: typeof SettingsRoute
+  OrdersArchiveRoute: typeof OrdersArchiveRoute
   OrdersNewRoute: typeof OrdersNewRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
 }
@@ -146,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orders/archive': {
+      id: '/orders/archive'
+      path: '/orders/archive'
+      fullPath: '/orders/archive'
+      preLoaderRoute: typeof OrdersArchiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -154,19 +180,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProductsRoute: ProductsRoute,
   SettingsRoute: SettingsRoute,
+  OrdersArchiveRoute: OrdersArchiveRoute,
   OrdersNewRoute: OrdersNewRoute,
   OrdersIndexRoute: OrdersIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
