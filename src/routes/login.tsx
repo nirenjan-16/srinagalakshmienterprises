@@ -16,14 +16,15 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (signIn(username, password)) {
-      navigate({ to: "/" });
-    } else {
-      setError("Invalid username or password.");
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const ok = await signIn(username, password);
+  if (ok) {
+    navigate({ to: "/" });
+  } else {
+    setError("Invalid username or password.");
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -77,7 +78,7 @@ function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Default: admin / admin123 — change in Settings.
+          Contact admin if cannot log in.
         </p>
       </div>
     </div>
