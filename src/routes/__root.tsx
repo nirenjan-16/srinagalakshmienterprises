@@ -82,6 +82,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Sri Nagalakshmi Enterprises – OrderDesk" },
       { property: "og:description", content: "OrderDesk for Sri Nagalakshmi Enterprises — FMCG Distributor." },
       { property: "og:type", content: "website" },
+      { name: "twitter:title", content: "Sri Nagalakshmi Enterprises – OrderDesk" },
+      { name: "twitter:description", content: "OrderDesk for Sri Nagalakshmi Enterprises — FMCG Distributor." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0d4005e2-3267-4edf-9952-92503d521491/id-preview-6064b1d0--b40a8efd-ee67-4437-9514-44a8f7511926.lovable.app-1780807339267.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0d4005e2-3267-4edf-9952-92503d521491/id-preview-6064b1d0--b40a8efd-ee67-4437-9514-44a8f7511926.lovable.app-1780807339267.png" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
