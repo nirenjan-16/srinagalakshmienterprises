@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/orders")({
+export const Route = createFileRoute("/orders/")({
   head: () => ({ meta: [{ title: "Orders — OrderDesk" }] }),
   component: () => (
     <AuthGuard>
