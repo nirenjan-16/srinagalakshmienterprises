@@ -155,8 +155,6 @@
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
-}
-@utility input {
   &:focus {
     outline: none;
     box-shadow: 0 0 0 2px var(--color-brand);
