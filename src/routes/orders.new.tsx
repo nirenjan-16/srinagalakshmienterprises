@@ -65,9 +65,9 @@ function NewOrderPage() {
       prev.map((l) => {
         if (l.key !== key) return l;
         const next = { ...l, ...patch };
-        // auto-fill rate on product or unit change
         const product = productMap[next.product_id];
         if (product && (patch.product_id !== undefined || patch.unit_type !== undefined)) {
+          next.product_name = product.name;
           next.rate =
             next.unit_type === "Box"
               ? product.box_mrp != null
