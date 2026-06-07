@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ImagePlus, X } from "lucide-react";
+import { resolveImageUrls, uploadProductImage, deleteProductImage } from "@/lib/productImages";
 
 export const Route = createFileRoute("/products")({
   head: () => ({ meta: [{ title: "Products — OrderDesk" }] }),
@@ -20,6 +21,7 @@ interface Product {
   default_mrp: number;
   box_size: number | null;
   box_mrp: number | null;
+  image_url: string | null;
 }
 
 interface FormState {
@@ -29,6 +31,9 @@ interface FormState {
   box_size: string;
   box_mrp: string;
   box_mrp_touched: boolean;
+  image_url: string | null;
+  imageFile: File | null;
+  imagePreview: string | null;
 }
 
 const emptyForm: FormState = {
@@ -38,10 +43,14 @@ const emptyForm: FormState = {
   box_size: "",
   box_mrp: "",
   box_mrp_touched: false,
+  image_url: null,
+  imageFile: null,
+  imagePreview: null,
 };
 
 function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,7 +58,10 @@ function ProductsPage() {
   const load = async () => {
     setLoading(true);
     const { data } = await supabase.from("products").select("*").order("name");
-    setProducts((data as Product[]) ?? []);
+    const list = (data as Product[]) ?? [];
+    setProducts(list);
+    const urls = await resolveImageUrls(list.map((p) => p.image_url));
+    setImageMap(urls);
     setLoading(false);
   };
 
@@ -57,7 +69,6 @@ function ProductsPage() {
     load();
   }, []);
 
-  // Auto-calc box_mrp unless user has manually overridden
   useEffect(() => {
     if (form.box_mrp_touched) return;
     const mrp = parseFloat(form.default_mrp);
@@ -67,23 +78,42 @@ function ProductsPage() {
     }
   }, [form.default_mrp, form.box_size, form.box_mrp_touched]);
 
+  const handleFile = (file: File | null) => {
+    if (!file) {
+      setForm((f) => ({ ...f, imageFile: null, imagePreview: null }));
+      return;
+    }
+    setForm((f) => ({ ...f, imageFile: file, imagePreview: URL.createObjectURL(file) }));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const payload = {
-      name: form.name.trim(),
-      default_mrp: parseFloat(form.default_mrp) || 0,
-      box_size: form.box_size ? parseInt(form.box_size) : null,
-      box_mrp: form.box_mrp ? parseFloat(form.box_mrp) : null,
-    };
-    if (form.id) {
-      await supabase.from("products").update(payload).eq("id", form.id);
-    } else {
-      await supabase.from("products").insert(payload);
+    try {
+      let image_url = form.image_url;
+      if (form.imageFile) {
+        if (form.image_url) await deleteProductImage(form.image_url).catch(() => {});
+        image_url = await uploadProductImage(form.imageFile);
+      }
+      const payload = {
+        name: form.name.trim(),
+        default_mrp: parseFloat(form.default_mrp) || 0,
+        box_size: form.box_size ? parseInt(form.box_size) : null,
+        box_mrp: form.box_mrp ? parseFloat(form.box_mrp) : null,
+        image_url,
+      };
+      if (form.id) {
+        await supabase.from("products").update(payload).eq("id", form.id);
+      } else {
+        await supabase.from("products").insert(payload);
+      }
+      setForm(emptyForm);
+      await load();
+    } catch (err: any) {
+      alert("Failed to save product: " + (err?.message ?? "unknown"));
+    } finally {
+      setSaving(false);
     }
-    setForm(emptyForm);
-    setSaving(false);
-    load();
   };
 
   const handleEdit = (p: Product) => {
@@ -94,13 +124,22 @@ function ProductsPage() {
       box_size: p.box_size ? String(p.box_size) : "",
       box_mrp: p.box_mrp ? String(p.box_mrp) : "",
       box_mrp_touched: true,
+      image_url: p.image_url,
+      imageFile: null,
+      imagePreview: p.image_url ? imageMap[p.image_url] ?? null : null,
     });
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
+    const p = products.find((x) => x.id === id);
+    if (p?.image_url) await deleteProductImage(p.image_url).catch(() => {});
     await supabase.from("products").delete().eq("id", id);
     load();
+  };
+
+  const clearImage = async () => {
+    setForm((f) => ({ ...f, imageFile: null, imagePreview: null, image_url: null }));
   };
 
   return (
@@ -116,8 +155,38 @@ function ProductsPage() {
 
         <form
           onSubmit={handleSave}
-          className="mb-8 grid gap-4 rounded-xl border border-border bg-card p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
+          className="mb-8 grid gap-4 rounded-xl border border-border bg-card p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-6"
         >
+          <div className="sm:col-span-2 lg:col-span-1">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Image
+            </span>
+            <div className="flex items-center gap-2">
+              <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 text-muted-foreground hover:bg-accent">
+                {form.imagePreview ? (
+                  <img src={form.imagePreview} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImagePlus className="h-5 w-5" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              {(form.imagePreview || form.image_url) && (
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
+                  aria-label="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
           <Field label="Product name" required>
             <input
               required
@@ -163,7 +232,7 @@ function ProductsPage() {
               disabled={saving}
               className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground transition hover:opacity-90 disabled:opacity-50"
             >
-              {form.id ? "Update" : "Add"}
+              {saving ? "Saving…" : form.id ? "Update" : "Add"}
             </button>
             {form.id && (
               <button
@@ -181,6 +250,7 @@ function ProductsPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
+                <th className="px-4 py-3">Image</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Pack MRP</th>
                 <th className="px-4 py-3">Packs/Box</th>
@@ -191,19 +261,30 @@ function ProductsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     Loading…
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     No products yet.
                   </td>
                 </tr>
               ) : (
                 products.map((p) => (
                   <tr key={p.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3">
+                      {p.image_url && imageMap[p.image_url] ? (
+                        <img
+                          src={imageMap[p.image_url]}
+                          alt={p.name}
+                          className="h-12 w-12 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-md bg-muted" />
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-medium">{p.name}</td>
                     <td className="px-4 py-3">₹{Number(p.default_mrp).toFixed(2)}</td>
                     <td className="px-4 py-3">{p.box_size ?? "—"}</td>
