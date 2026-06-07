@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
-import { Pencil, Trash2, ImagePlus, X } from "lucide-react";
-import { resolveImageUrls, uploadProductImage, deleteProductImage } from "@/lib/productImages";
+import { Pencil, Trash2, Search, X, ImageIcon } from "lucide-react";
+import { searchProductImage } from "@/lib/imageSearch.functions";
 
 export const Route = createFileRoute("/products")({
   head: () => ({ meta: [{ title: "Products — OrderDesk" }] }),
@@ -31,9 +32,7 @@ interface FormState {
   box_size: string;
   box_mrp: string;
   box_mrp_touched: boolean;
-  image_url: string | null;
-  imageFile: File | null;
-  imagePreview: string | null;
+  image_url: string;
 }
 
 const emptyForm: FormState = {
@@ -43,25 +42,21 @@ const emptyForm: FormState = {
   box_size: "",
   box_mrp: "",
   box_mrp_touched: false,
-  image_url: null,
-  imageFile: null,
-  imagePreview: null,
+  image_url: "",
 };
 
 function ProductsPage() {
+  const fetchImage = useServerFn(searchProductImage);
   const [products, setProducts] = useState<Product[]>([]);
-  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const { data } = await supabase.from("products").select("*").order("name");
-    const list = (data as Product[]) ?? [];
-    setProducts(list);
-    const urls = await resolveImageUrls(list.map((p) => p.image_url));
-    setImageMap(urls);
+    setProducts((data as Product[]) ?? []);
     setLoading(false);
   };
 
@@ -78,42 +73,56 @@ function ProductsPage() {
     }
   }, [form.default_mrp, form.box_size, form.box_mrp_touched]);
 
-  const handleFile = (file: File | null) => {
-    if (!file) {
-      setForm((f) => ({ ...f, imageFile: null, imagePreview: null }));
+  const handleAutoFetch = async () => {
+    if (!form.name.trim()) {
+      alert("Enter a product name first.");
       return;
     }
-    setForm((f) => ({ ...f, imageFile: file, imagePreview: URL.createObjectURL(file) }));
+    setSearching(true);
+    try {
+      const res = await fetchImage({ data: { query: `${form.name} product pack` } });
+      if (res?.url) {
+        setForm((f) => ({ ...f, image_url: res.url! }));
+      } else {
+        alert("No image found. Try a more specific name or paste a URL manually.");
+      }
+    } catch (err: any) {
+      alert("Image search failed: " + (err?.message ?? "unknown"));
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      let image_url = form.image_url;
-      if (form.imageFile) {
-        if (form.image_url) await deleteProductImage(form.image_url).catch(() => {});
-        image_url = await uploadProductImage(form.imageFile);
+
+    let imageUrl = form.image_url.trim() || null;
+    // If the user left the image blank, auto-fetch one based on the name
+    if (!imageUrl && form.name.trim()) {
+      try {
+        const res = await fetchImage({ data: { query: `${form.name} product pack` } });
+        if (res?.url) imageUrl = res.url;
+      } catch {
+        /* ignore — leave image blank */
       }
-      const payload = {
-        name: form.name.trim(),
-        default_mrp: parseFloat(form.default_mrp) || 0,
-        box_size: form.box_size ? parseInt(form.box_size) : null,
-        box_mrp: form.box_mrp ? parseFloat(form.box_mrp) : null,
-        image_url,
-      };
-      if (form.id) {
-        await supabase.from("products").update(payload).eq("id", form.id);
-      } else {
-        await supabase.from("products").insert(payload);
-      }
-      setForm(emptyForm);
-      await load();
-    } catch (err: any) {
-      alert("Failed to save product: " + (err?.message ?? "unknown"));
-    } finally {
-      setSaving(false);
     }
+
+    const payload = {
+      name: form.name.trim(),
+      default_mrp: parseFloat(form.default_mrp) || 0,
+      box_size: form.box_size ? parseInt(form.box_size) : null,
+      box_mrp: form.box_mrp ? parseFloat(form.box_mrp) : null,
+      image_url: imageUrl,
+    };
+    if (form.id) {
+      await supabase.from("products").update(payload).eq("id", form.id);
+    } else {
+      await supabase.from("products").insert(payload);
+    }
+    setForm(emptyForm);
+    setSaving(false);
+    load();
   };
 
   const handleEdit = (p: Product) => {
@@ -124,22 +133,14 @@ function ProductsPage() {
       box_size: p.box_size ? String(p.box_size) : "",
       box_mrp: p.box_mrp ? String(p.box_mrp) : "",
       box_mrp_touched: true,
-      image_url: p.image_url,
-      imageFile: null,
-      imagePreview: p.image_url ? imageMap[p.image_url] ?? null : null,
+      image_url: p.image_url ?? "",
     });
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
-    const p = products.find((x) => x.id === id);
-    if (p?.image_url) await deleteProductImage(p.image_url).catch(() => {});
     await supabase.from("products").delete().eq("id", id);
     load();
-  };
-
-  const clearImage = async () => {
-    setForm((f) => ({ ...f, imageFile: null, imagePreview: null, image_url: null }));
   };
 
   return (
@@ -159,31 +160,18 @@ function ProductsPage() {
         >
           <div className="sm:col-span-2 lg:col-span-1">
             <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Image
+              Preview
             </span>
-            <div className="flex items-center gap-2">
-              <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 text-muted-foreground hover:bg-accent">
-                {form.imagePreview ? (
-                  <img src={form.imagePreview} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <ImagePlus className="h-5 w-5" />
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
+              {form.image_url ? (
+                <img
+                  src={form.image_url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                 />
-              </label>
-              {(form.imagePreview || form.image_url) && (
-                <button
-                  type="button"
-                  onClick={clearImage}
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-                  aria-label="Remove image"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+              ) : (
+                <ImageIcon className="h-5 w-5 text-muted-foreground" />
               )}
             </div>
           </div>
@@ -244,6 +232,40 @@ function ProductsPage() {
               </button>
             )}
           </div>
+
+          <div className="sm:col-span-2 lg:col-span-6">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Image URL <span className="normal-case text-[10px] text-muted-foreground/70">(leave blank to auto-fetch on save)</span>
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="url"
+                value={form.image_url}
+                onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                placeholder="https://… (auto-fetched from the internet if blank)"
+                className="input flex-1 min-w-[200px]"
+              />
+              <button
+                type="button"
+                onClick={handleAutoFetch}
+                disabled={searching}
+                className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              >
+                <Search className="h-4 w-4" />
+                {searching ? "Searching…" : "Find image"}
+              </button>
+              {form.image_url && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, image_url: "" })}
+                  className="rounded-md p-2 text-muted-foreground hover:bg-accent"
+                  aria-label="Clear image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
         </form>
 
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
@@ -275,11 +297,12 @@ function ProductsPage() {
                 products.map((p) => (
                   <tr key={p.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3">
-                      {p.image_url && imageMap[p.image_url] ? (
+                      {p.image_url ? (
                         <img
-                          src={imageMap[p.image_url]}
+                          src={p.image_url}
                           alt={p.name}
                           className="h-12 w-12 rounded-md object-cover"
+                          onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.2")}
                         />
                       ) : (
                         <div className="h-12 w-12 rounded-md bg-muted" />
