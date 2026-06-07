@@ -135,17 +135,27 @@ function NewOrderPage() {
     ).filter((name) => !products.some((p) => p.name.toLowerCase() === name.toLowerCase()));
 
     if (newProductNames.length > 0) {
-      const inserts = newProductNames.map((name) => {
-        const sourceLine = valid.find(
-          (l) => l.product_name.trim().toLowerCase() === name.toLowerCase(),
-        );
-        const rate = sourceLine ? parseFloat(sourceLine.rate) || 0 : 0;
-        return {
-          name,
-          default_mrp: sourceLine?.unit_type === "Box" ? 0 : rate,
-          box_mrp: sourceLine?.unit_type === "Box" ? rate || null : null,
-        };
-      });
+      const inserts = await Promise.all(
+        newProductNames.map(async (name) => {
+          const sourceLine = valid.find(
+            (l) => l.product_name.trim().toLowerCase() === name.toLowerCase(),
+          );
+          const rate = sourceLine ? parseFloat(sourceLine.rate) || 0 : 0;
+          let image_url: string | null = null;
+          try {
+            const res = await fetchImage({ data: { query: `${name} product pack` } });
+            image_url = res?.url ?? null;
+          } catch {
+            /* ignore — leave image blank */
+          }
+          return {
+            name,
+            default_mrp: sourceLine?.unit_type === "Box" ? 0 : rate,
+            box_mrp: sourceLine?.unit_type === "Box" ? rate || null : null,
+            image_url,
+          };
+        }),
+      );
       const { error: prodErr } = await supabase.from("products").insert(inserts);
       if (prodErr) {
         alert("Failed to add new products: " + prodErr.message);
