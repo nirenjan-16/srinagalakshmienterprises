@@ -90,9 +90,11 @@ function NewOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const valid = lines.filter((l) => l.product_id && parseFloat(l.quantity) > 0);
+    const valid = lines.filter(
+      (l) => (l.product_id || l.product_name.trim()) && parseFloat(l.quantity) > 0,
+    );
     if (valid.length === 0) {
-      alert("Add at least one product line.");
+      alert("Add at least one product line with a name and quantity.");
       return;
     }
     setSaving(true);
@@ -124,8 +126,8 @@ function NewOrderPage() {
       const r = parseFloat(l.rate) || 0;
       return {
         order_id: order.id,
-        product_id: l.product_id,
-        product_name: product?.name ?? "",
+        product_id: l.product_id || null,
+        product_name: product?.name ?? l.product_name.trim(),
         unit_type: l.unit_type,
         quantity: q,
         rate: r,
