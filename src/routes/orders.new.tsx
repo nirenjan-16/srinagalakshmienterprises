@@ -46,6 +46,7 @@ function NewOrderPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const [customers, setCustomers] = useState<Array<{ name: string; phone: string | null }>>([]);
   const [customer, setCustomer] = useState("");
   const [toNumber, setToNumber] = useState("");
   const [phone, setPhone] = useState("");
@@ -53,15 +54,30 @@ function NewOrderPage() {
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
   const [saving, setSaving] = useState(false);
 
+  const reloadProducts = async () => {
+    const { data } = await supabase.from("products").select("*").order("name");
+    const list = (data as Product[]) ?? [];
+    setProducts(list);
+    setImageMap(await resolveImageUrls(list.map((p) => p.image_url)));
+    return list;
+  };
+
   useEffect(() => {
+    reloadProducts();
     supabase
-      .from("products")
-      .select("*")
-      .order("name")
-      .then(async ({ data }) => {
-        const list = (data as Product[]) ?? [];
-        setProducts(list);
-        setImageMap(await resolveImageUrls(list.map((p) => p.image_url)));
+      .from("orders")
+      .select("customer_name, phone")
+      .order("created_at", { ascending: false })
+      .limit(500)
+      .then(({ data }) => {
+        const seen = new Map<string, { name: string; phone: string | null }>();
+        (data ?? []).forEach((row: any) => {
+          const name = (row.customer_name ?? "").trim();
+          if (name && !seen.has(name.toLowerCase())) {
+            seen.set(name.toLowerCase(), { name, phone: row.phone ?? null });
+          }
+        });
+        setCustomers(Array.from(seen.values()));
       });
   }, []);
 
