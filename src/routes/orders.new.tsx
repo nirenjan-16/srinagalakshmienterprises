@@ -122,6 +122,40 @@ function NewOrderPage() {
     }
     setSaving(true);
 
+    // Auto-create any products that don't exist yet
+    const newProductNames = Array.from(
+      new Set(
+        valid
+          .filter((l) => !l.product_id && l.product_name.trim())
+          .map((l) => l.product_name.trim()),
+      ),
+    ).filter((name) => !products.some((p) => p.name.toLowerCase() === name.toLowerCase()));
+
+    if (newProductNames.length > 0) {
+      const inserts = newProductNames.map((name) => {
+        const sourceLine = valid.find(
+          (l) => l.product_name.trim().toLowerCase() === name.toLowerCase(),
+        );
+        const rate = sourceLine ? parseFloat(sourceLine.rate) || 0 : 0;
+        return {
+          name,
+          default_mrp: sourceLine?.unit_type === "Box" ? 0 : rate,
+          box_mrp: sourceLine?.unit_type === "Box" ? rate || null : null,
+        };
+      });
+      const { error: prodErr } = await supabase.from("products").insert(inserts);
+      if (prodErr) {
+        alert("Failed to add new products: " + prodErr.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    // Reload products so we can attach product_ids to the new lines
+    const refreshedProducts = await reloadProducts();
+    const findByName = (name: string) =>
+      refreshedProducts.find((p) => p.name.toLowerCase() === name.trim().toLowerCase());
+
     const orderNumber = `ORD-${Date.now()}`;
     const { data: order, error } = await supabase
       .from("orders")
@@ -144,13 +178,15 @@ function NewOrderPage() {
     }
 
     const itemsPayload = valid.map((l) => {
-      const product = productMap[l.product_id];
+      const matched = l.product_id ? null : findByName(l.product_name);
+      const productId = l.product_id || matched?.id || null;
+      const productName = l.product_name.trim() || matched?.name || "";
       const q = parseFloat(l.quantity) || 0;
       const r = parseFloat(l.rate) || 0;
       return {
         order_id: order.id,
-        product_id: l.product_id || null,
-        product_name: product?.name ?? l.product_name.trim(),
+        product_id: productId,
+        product_name: productName,
         unit_type: l.unit_type,
         quantity: q,
         rate: r,
