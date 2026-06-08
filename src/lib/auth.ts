@@ -1,9 +1,13 @@
 // DB-backed auth using Supabase users table + bcryptjs password verification.
 import { supabase } from "@/integrations/supabase/client";
+// @ts-ignore — no types shipped for bcryptjs
 import bcrypt from "bcryptjs";
 
 const SESSION_KEY = "orderdesk_session";
 const SESSION_USER_KEY = "orderdesk_username";
+
+// `users` table is managed outside the generated Supabase types, so we cast.
+const db = supabase as any;
 
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false;
@@ -21,7 +25,7 @@ export function signOut(): void {
 
 export async function signIn(username: string, password: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("users")
       .select("username, password_hash")
       .eq("username", username.trim())
@@ -45,7 +49,7 @@ export async function signIn(username: string, password: string): Promise<boolea
 
 export async function updateCredentials(
   newUsername?: string,
-  newPassword?: string
+  newPassword?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const currentUsername = getCurrentUsername();
 
@@ -63,7 +67,7 @@ export async function updateCredentials(
     return { success: true };
   }
 
-  const { error } = await supabase
+  const { error } = await db
     .from("users")
     .update(updatePayload)
     .eq("username", currentUsername);
