@@ -30,7 +30,6 @@ interface LineItem {
   key: string;
   product_id: string;
   product_name: string;
-  unit_type: "Pack" | "Box";
   quantity: string;
   rate: string;
 }
@@ -39,7 +38,6 @@ const newLine = (): LineItem => ({
   key: Math.random().toString(36).slice(2),
   product_id: "",
   product_name: "",
-  unit_type: "Pack",
   quantity: "1",
   rate: "",
 });
@@ -92,14 +90,9 @@ function NewOrderPage() {
         if (l.key !== key) return l;
         const next = { ...l, ...patch };
         const product = productMap[next.product_id];
-        if (product && (patch.product_id !== undefined || patch.unit_type !== undefined)) {
+        if (product && patch.product_id !== undefined) {
           next.product_name = product.name;
-          next.rate =
-            next.unit_type === "Box"
-              ? product.box_mrp != null
-                ? String(product.box_mrp)
-                : ""
-              : String(product.default_mrp);
+          next.rate = product.box_mrp != null ? String(product.box_mrp) : String(product.default_mrp);
         }
         return next;
       }),
@@ -125,7 +118,6 @@ function NewOrderPage() {
     }
     setSaving(true);
 
-    // Auto-create any products that don't exist yet
     const newProductNames = Array.from(
       new Set(
         valid
@@ -146,12 +138,12 @@ function NewOrderPage() {
             const res = await fetchImage({ data: { query: `${name} product pack` } });
             image_url = res?.url ?? null;
           } catch {
-            /* ignore — leave image blank */
+            /* ignore */
           }
           return {
             name,
-            default_mrp: sourceLine?.unit_type === "Box" ? 0 : rate,
-            box_mrp: sourceLine?.unit_type === "Box" ? rate || null : null,
+            default_mrp: 0,
+            box_mrp: rate || null,
             image_url,
           };
         }),
@@ -164,33 +156,20 @@ function NewOrderPage() {
       }
     }
 
-    // Reload products so we can attach product_ids to the new lines
     const refreshedProducts = await reloadProducts();
     const findByName = (name: string) =>
       refreshedProducts.find((p) => p.name.toLowerCase() === name.trim().toLowerCase());
 
     const { data: lastOrder } = await supabase
-  .from("orders")
-  .select("order_number")
-  .order("created_at", { ascending: false })
-  .limit(1);
-const lastNum = lastOrder?.[0]?.order_number
-  ? parseInt(lastOrder[0].order_number.replace("ORD-", "")) || 0
-  : 0;
-const orderNumber = `ORD-${String(lastNum + 1).padStart(3, "0")}`;
-const { data: order, error } = await supabase
-  .from("orders")
-  .insert({
-    order_number: orderNumber,
-    customer_name: customer.trim(),
-    to_number: toNumber.trim() || null,
-    phone: phone.trim() || null,
-    order_date: orderDate,
-    status: "Pending",
-    total_amount: total,
-  })
-  .select("id")
-  .single();
+      .from("orders")
+      .select("order_number")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const lastNum = lastOrder?.[0]?.order_number
+      ? parseInt(lastOrder[0].order_number.replace("ORD-", "")) || 0
+      : 0;
+    const orderNumber = `ORD-${String(lastNum + 1).padStart(3, "0")}`;
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
@@ -221,7 +200,7 @@ const { data: order, error } = await supabase
         order_id: order.id,
         product_id: productId,
         product_name: productName,
-        unit_type: l.unit_type,
+        unit_type: "Box",
         quantity: q,
         rate: r,
         amount: q * r,
@@ -303,11 +282,10 @@ const { data: order, error } = await supabase
             <div className="space-y-3">
               {lines.map((line) => {
                 const product = productMap[line.product_id];
-                const showBoxHint = line.unit_type === "Box" && product?.box_size;
                 return (
                   <div
                     key={line.key}
-                    className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_auto]"
+                    className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-[auto_2fr_1fr_1fr_1fr_auto]"
                   >
                     <div className="flex items-end">
                       {product?.image_url && imageMap[product.image_url] ? (
@@ -338,10 +316,8 @@ const { data: order, error } = await supabase
                             ...(match
                               ? {
                                   rate:
-                                    line.unit_type === "Box"
-                                      ? match.box_mrp != null
-                                        ? String(match.box_mrp)
-                                        : ""
+                                    match.box_mrp != null
+                                      ? String(match.box_mrp)
                                       : String(match.default_mrp),
                                 }
                               : {}),
@@ -358,25 +334,7 @@ const { data: order, error } = await supabase
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
-                        Unit
-                      </label>
-                      <select
-                        value={line.unit_type}
-                        onChange={(e) => updateLine(line.key, { unit_type: e.target.value as "Pack" | "Box" })}
-                        className="input"
-                      >
-                        <option value="Pack">Pack</option>
-                        <option value="Box">Box</option>
-                      </select>
-                      {showBoxHint && (
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {product!.box_size} packs/box
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
-                        Quantity
+                        Quantity (Box)
                       </label>
                       <input
                         type="number"
