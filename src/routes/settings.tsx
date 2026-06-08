@@ -34,7 +34,10 @@ function SettingsPage() {
       setMessage({ kind: "err", text: "Password must be at least 6 characters." });
       return;
     }
-    updateCredentials(username, password || undefined);
+    updateCredentials({
+  username,
+  password: password || undefined,
+});
     setPassword("");
     setConfirm("");
     setMessage({ kind: "ok", text: "Settings saved." });
