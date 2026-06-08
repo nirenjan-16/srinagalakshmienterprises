@@ -78,7 +78,7 @@ function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Contact admin if cannot log in.
+          Contact your administrator if you cannot log in.
         </p>
       </div>
     </div>
