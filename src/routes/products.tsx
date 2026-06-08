@@ -150,6 +150,63 @@ function ProductsPage() {
     load();
   };
 
+  const handleFilePick = async (file: File) => {
+    setUploadResult(null);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+      const rows = raw
+        .map((r) => {
+          // Be tolerant of casing / spaces in headers
+          const norm: Record<string, any> = {};
+          Object.keys(r).forEach((k) => {
+            norm[k.trim().toLowerCase().replace(/\s+/g, "_")] = r[k];
+          });
+          const name = String(norm.name ?? "").trim();
+          if (!name) return null;
+          const defaultMrp = Number(norm.default_mrp ?? norm.pack_mrp ?? 0) || 0;
+          const boxSize = norm.box_size === "" || norm.box_size == null ? null : Number(norm.box_size) || null;
+          const boxMrp = norm.box_mrp === "" || norm.box_mrp == null ? null : Number(norm.box_mrp) || null;
+          return { name, default_mrp: defaultMrp, box_size: boxSize, box_mrp: boxMrp };
+        })
+        .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number | null } => r !== null);
+      if (rows.length === 0) {
+        alert("No valid rows found. Required column: name (also accepts default_mrp, box_size, box_mrp).");
+        return;
+      }
+      setUploadPreview({ rows, fileName: file.name });
+    } catch (err: any) {
+      alert("Failed to read file: " + (err?.message ?? "unknown"));
+    }
+  };
+
+  const confirmBulkUpload = async () => {
+    if (!uploadPreview) return;
+    setUploading(true);
+    let success = 0;
+    let errors = 0;
+    const messages: string[] = [];
+    // Insert in chunks of 100
+    const chunkSize = 100;
+    for (let i = 0; i < uploadPreview.rows.length; i += chunkSize) {
+      const chunk = uploadPreview.rows.slice(i, i + chunkSize);
+      const { error, data } = await supabase.from("products").insert(chunk).select("id");
+      if (error) {
+        errors += chunk.length;
+        messages.push(error.message);
+      } else {
+        success += data?.length ?? chunk.length;
+      }
+    }
+    setUploading(false);
+    setUploadPreview(null);
+    setUploadResult({ success, errors, messages: messages.slice(0, 5) });
+    load();
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
