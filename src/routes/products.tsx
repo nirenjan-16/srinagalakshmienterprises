@@ -53,6 +53,12 @@ function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [uploadPreview, setUploadPreview] = useState<
+    | null
+    | { rows: Array<{ name: string; default_mrp: number; box_size: number | null; box_mrp: number | null }>; fileName: string }
+  >(null);
+  const [uploadResult, setUploadResult] = useState<{ success: number; errors: number; messages: string[] } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     setLoading(true);
