@@ -4,8 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
-import { Pencil, Trash2, Search, X, ImageIcon } from "lucide-react";
+import { Pencil, Trash2, Search, X, ImageIcon, Upload } from "lucide-react";
 import { searchProductImage } from "@/lib/imageSearch.functions";
+import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/products")({
   head: () => ({ meta: [{ title: "Products — OrderDesk" }] }),
