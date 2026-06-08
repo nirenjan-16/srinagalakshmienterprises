@@ -34,7 +34,12 @@ export async function signIn(username: string, password: string): Promise<boolea
     if (error || !data || data.length === 0) return false;
 
     const user = data[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
+    let valid = false;
+if (user.password_hash.startsWith("PLAIN:")) {
+  valid = password === user.password_hash.replace("PLAIN:", "");
+} else {
+  valid = await bcrypt.compare(password, user.password_hash);
+}
 
     if (valid) {
       localStorage.setItem(SESSION_KEY, "active");
