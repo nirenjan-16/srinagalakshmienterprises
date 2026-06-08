@@ -211,12 +211,113 @@ function ProductsPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="mx-auto max-w-7xl px-6 py-10">
-        <h1
-          className="mb-6 text-2xl font-semibold"
-          style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-        >
-          Products
-        </h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1
+            className="text-2xl font-semibold"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            Products
+          </h1>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+            <Upload className="h-4 w-4" />
+            Upload Products
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFilePick(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+
+        {uploadResult && (
+          <div className="mb-6 rounded-xl border border-border bg-card p-4 text-sm shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-emerald-600">{uploadResult.success} added</span>
+                {uploadResult.errors > 0 && (
+                  <span className="ml-3 font-semibold text-destructive">{uploadResult.errors} failed</span>
+                )}
+              </div>
+              <button
+                onClick={() => setUploadResult(null)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-accent"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {uploadResult.messages.length > 0 && (
+              <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">
+                {uploadResult.messages.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {uploadPreview && (
+          <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Preview upload</h2>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">{uploadPreview.rows.length}</span> rows found in{" "}
+                  <span className="font-medium">{uploadPreview.fileName}</span>
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setUploadPreview(null)}
+                  disabled={uploading}
+                  className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkUpload}
+                  disabled={uploading}
+                  className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-brand-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {uploading ? "Uploading…" : `Confirm & Upload ${uploadPreview.rows.length}`}
+                </button>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-auto rounded-md border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">Pack MRP</th>
+                    <th className="px-3 py-2">Box Size</th>
+                    <th className="px-3 py-2">Box MRP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uploadPreview.rows.slice(0, 50).map((r, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-1.5">{r.name}</td>
+                      <td className="px-3 py-1.5">₹{r.default_mrp.toFixed(2)}</td>
+                      <td className="px-3 py-1.5">{r.box_size ?? "—"}</td>
+                      <td className="px-3 py-1.5">{r.box_mrp != null ? `₹${r.box_mrp.toFixed(2)}` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {uploadPreview.rows.length > 50 && (
+                <div className="border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  …and {uploadPreview.rows.length - 50} more
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
 
         <form
           onSubmit={handleSave}
