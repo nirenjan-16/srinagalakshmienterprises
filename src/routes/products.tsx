@@ -4,8 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
-import { Pencil, Trash2, Search, X, ImageIcon } from "lucide-react";
+import { Pencil, Trash2, Search, X, ImageIcon, Upload } from "lucide-react";
 import { searchProductImage } from "@/lib/imageSearch.functions";
+import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/products")({
   head: () => ({ meta: [{ title: "Products — OrderDesk" }] }),
@@ -52,6 +53,12 @@ function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [uploadPreview, setUploadPreview] = useState<
+    | null
+    | { rows: Array<{ name: string; default_mrp: number; box_size: number | null; box_mrp: number | null }>; fileName: string }
+  >(null);
+  const [uploadResult, setUploadResult] = useState<{ success: number; errors: number; messages: string[] } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -143,16 +150,174 @@ function ProductsPage() {
     load();
   };
 
+  const handleFilePick = async (file: File) => {
+    setUploadResult(null);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+      const rows = raw
+        .map((r) => {
+          // Be tolerant of casing / spaces in headers
+          const norm: Record<string, any> = {};
+          Object.keys(r).forEach((k) => {
+            norm[k.trim().toLowerCase().replace(/\s+/g, "_")] = r[k];
+          });
+          const name = String(norm.name ?? "").trim();
+          if (!name) return null;
+          const defaultMrp = Number(norm.default_mrp ?? norm.pack_mrp ?? 0) || 0;
+          const boxSize = norm.box_size === "" || norm.box_size == null ? null : Number(norm.box_size) || null;
+          const boxMrp = norm.box_mrp === "" || norm.box_mrp == null ? null : Number(norm.box_mrp) || null;
+          return { name, default_mrp: defaultMrp, box_size: boxSize, box_mrp: boxMrp };
+        })
+        .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number | null } => r !== null);
+      if (rows.length === 0) {
+        alert("No valid rows found. Required column: name (also accepts default_mrp, box_size, box_mrp).");
+        return;
+      }
+      setUploadPreview({ rows, fileName: file.name });
+    } catch (err: any) {
+      alert("Failed to read file: " + (err?.message ?? "unknown"));
+    }
+  };
+
+  const confirmBulkUpload = async () => {
+    if (!uploadPreview) return;
+    setUploading(true);
+    let success = 0;
+    let errors = 0;
+    const messages: string[] = [];
+    // Insert in chunks of 100
+    const chunkSize = 100;
+    for (let i = 0; i < uploadPreview.rows.length; i += chunkSize) {
+      const chunk = uploadPreview.rows.slice(i, i + chunkSize);
+      const { error, data } = await supabase.from("products").insert(chunk).select("id");
+      if (error) {
+        errors += chunk.length;
+        messages.push(error.message);
+      } else {
+        success += data?.length ?? chunk.length;
+      }
+    }
+    setUploading(false);
+    setUploadPreview(null);
+    setUploadResult({ success, errors, messages: messages.slice(0, 5) });
+    load();
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="mx-auto max-w-7xl px-6 py-10">
-        <h1
-          className="mb-6 text-2xl font-semibold"
-          style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-        >
-          Products
-        </h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1
+            className="text-2xl font-semibold"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            Products
+          </h1>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+            <Upload className="h-4 w-4" />
+            Upload Products
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFilePick(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+
+        {uploadResult && (
+          <div className="mb-6 rounded-xl border border-border bg-card p-4 text-sm shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-emerald-600">{uploadResult.success} added</span>
+                {uploadResult.errors > 0 && (
+                  <span className="ml-3 font-semibold text-destructive">{uploadResult.errors} failed</span>
+                )}
+              </div>
+              <button
+                onClick={() => setUploadResult(null)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-accent"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {uploadResult.messages.length > 0 && (
+              <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">
+                {uploadResult.messages.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {uploadPreview && (
+          <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Preview upload</h2>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">{uploadPreview.rows.length}</span> rows found in{" "}
+                  <span className="font-medium">{uploadPreview.fileName}</span>
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setUploadPreview(null)}
+                  disabled={uploading}
+                  className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkUpload}
+                  disabled={uploading}
+                  className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-brand-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {uploading ? "Uploading…" : `Confirm & Upload ${uploadPreview.rows.length}`}
+                </button>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-auto rounded-md border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Name</th>
+                    <th className="px-3 py-2">Pack MRP</th>
+                    <th className="px-3 py-2">Box Size</th>
+                    <th className="px-3 py-2">Box MRP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uploadPreview.rows.slice(0, 50).map((r, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-1.5">{r.name}</td>
+                      <td className="px-3 py-1.5">₹{r.default_mrp.toFixed(2)}</td>
+                      <td className="px-3 py-1.5">{r.box_size ?? "—"}</td>
+                      <td className="px-3 py-1.5">{r.box_mrp != null ? `₹${r.box_mrp.toFixed(2)}` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {uploadPreview.rows.length > 50 && (
+                <div className="border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  …and {uploadPreview.rows.length - 50} more
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
 
         <form
           onSubmit={handleSave}
