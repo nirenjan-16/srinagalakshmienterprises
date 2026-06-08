@@ -71,15 +71,6 @@ function ProductsPage() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (form.box_mrp_touched) return;
-    const mrp = parseFloat(form.default_mrp);
-    const size = parseInt(form.box_size);
-    if (!isNaN(mrp) && !isNaN(size) && size > 0) {
-      setForm((f) => ({ ...f, box_mrp: (mrp * size).toFixed(2) }));
-    }
-  }, [form.default_mrp, form.box_size, form.box_mrp_touched]);
-
   const handleAutoFetch = async () => {
     if (!form.name.trim()) {
       alert("Enter a product name first.");
@@ -173,7 +164,7 @@ function ProductsPage() {
         })
         .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number | null } => r !== null);
       if (rows.length === 0) {
-        alert("No valid rows found. Required column: name (also accepts default_mrp, box_size, box_mrp).");
+        alert(""No valid rows found. Required column: name (default_mrp, box_size and box_mrp are optional).".");
         return;
       }
       setUploadPreview({ rows, fileName: file.name });
