@@ -1,8 +1,8 @@
 {
-  "framework": null,
   "buildCommand": "bun run build",
   "outputDirectory": ".output/public",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*)", "dest": "/" }
   ]
 }

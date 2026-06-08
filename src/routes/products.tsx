@@ -164,7 +164,7 @@ function ProductsPage() {
         })
         .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number | null } => r !== null);
       if (rows.length === 0) {
-        alert(""No valid rows found. Required column: name (default_mrp, box_size and box_mrp are optional).".");
+        alert("No valid rows found. Required column: name (default_mrp, box_size and box_mrp are optional).");
         return;
       }
       setUploadPreview({ rows, fileName: file.name });
