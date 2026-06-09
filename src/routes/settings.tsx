@@ -23,7 +23,7 @@ function SettingsPage() {
     setUsername(getCurrentUsername());
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     if (password && password !== confirm) {
@@ -34,13 +34,17 @@ function SettingsPage() {
       setMessage({ kind: "err", text: "Password must be at least 6 characters." });
       return;
     }
-    updateCredentials({
-  username,
-  password: password || undefined,
-});
-    setPassword("");
-    setConfirm("");
-    setMessage({ kind: "ok", text: "Settings saved." });
+    try {
+      await updateCredentials({
+        username,
+        password: password || undefined,
+      });
+      setPassword("");
+      setConfirm("");
+      setMessage({ kind: "ok", text: "Settings saved." });
+    } catch {
+      setMessage({ kind: "err", text: "Failed to save settings." });
+    }
   };
 
   return (

@@ -16,14 +16,19 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  if (signIn(username, password)) {
-    navigate({ to: "/" });
-  } else {
-    setError("Invalid username or password.");
-  }
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      if (await signIn(username, password)) {
+        navigate({ to: "/" });
+      } else {
+        setError("Invalid username or password.");
+      }
+    } catch {
+      setError("Sign-in failed. Please try again.");
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
