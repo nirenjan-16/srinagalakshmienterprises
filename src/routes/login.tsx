@@ -15,10 +15,12 @@ function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
     try {
       if (await signIn(username, password)) {
         navigate({ to: "/" });
@@ -27,25 +29,39 @@ function LoginPage() {
       }
     } catch {
       setError("Sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lg">
-        <div className="mb-6 text-center">
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden px-4"
+      style={{ backgroundImage: "var(--gradient-surface)" }}
+    >
+      {/* Soft ambient blobs */}
+      <div
+        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full opacity-40 blur-3xl"
+        style={{ backgroundImage: "var(--gradient-brand)" }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full opacity-30 blur-3xl"
+        style={{ background: "var(--brand-glow)" }}
+        aria-hidden
+      />
+
+      <div
+        className="relative w-full max-w-md rounded-3xl border border-border/60 bg-card/90 p-8 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-500"
+        style={{ boxShadow: "var(--shadow-elegant)" }}
+      >
+        <div className="mb-7 flex flex-col items-center text-center">
           <img
             src={logoAsset.url}
             alt="Sri Nagalakshmi Enterprises"
-            className="mx-auto mb-4 h-24 w-24 rounded-xl shadow-md"
+            className="mb-4 h-36 w-36 drop-shadow-xl"
           />
-          <h1
-            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-            className="text-2xl font-semibold text-brand"
-          >
-            Sri Nagalakshmi Enterprises
-          </h1>
-          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
             FMCG Distributor — OrderDesk
           </p>
         </div>
@@ -58,7 +74,7 @@ function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--brand-glow)]"
               autoFocus
             />
           </div>
@@ -69,19 +85,25 @@ function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm transition-all duration-200 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--brand-glow)]"
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive animate-in fade-in">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
-            className="w-full rounded-md bg-brand py-2 text-sm font-medium text-brand-foreground transition hover:opacity-90"
+            disabled={loading}
+            className="w-full rounded-lg py-2.5 text-sm font-semibold text-brand-foreground transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glow)] active:translate-y-0 disabled:opacity-60"
+            style={{ backgroundImage: "var(--gradient-brand)" }}
           >
-            Sign in
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
+        <p className="mt-5 text-center text-xs text-muted-foreground">
           Contact your administrator if you cannot log in.
         </p>
       </div>

@@ -51,24 +51,25 @@ function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ backgroundImage: "var(--gradient-surface)" }}>
       <SiteHeader />
       <main className="mx-auto max-w-7xl px-6 py-10">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
           <div>
             <h1
-              className="text-2xl font-semibold text-foreground"
+              className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
               style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             >
               Orders Dashboard
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Daily overview of your distribution operations.
             </p>
           </div>
           <Link
             to="/orders/new"
-            className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground shadow-sm transition hover:opacity-90"
+            className="rounded-lg px-5 py-2.5 text-sm font-semibold text-brand-foreground shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glow)]"
+            style={{ backgroundImage: "var(--gradient-brand)" }}
           >
             + New Order
           </Link>
@@ -83,16 +84,20 @@ function Dashboard() {
         <section className="mt-10 grid gap-4 sm:grid-cols-2">
           <Link
             to="/orders"
-            className="block rounded-xl border border-border bg-card p-6 transition hover:border-brand hover:shadow-md"
+            className="group block overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[var(--shadow-elegant)]"
           >
-            <h3 className="font-semibold text-foreground">View All Orders</h3>
+            <h3 className="font-semibold text-foreground transition-colors group-hover:text-brand">
+              View All Orders →
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">Browse, update status, and export CSV.</p>
           </Link>
           <Link
             to="/products"
-            className="block rounded-xl border border-border bg-card p-6 transition hover:border-brand hover:shadow-md"
+            className="group block overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[var(--shadow-elegant)]"
           >
-            <h3 className="font-semibold text-foreground">Manage Products</h3>
+            <h3 className="font-semibold text-foreground transition-colors group-hover:text-brand">
+              Manage Products →
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">Add packs, box sizes, and box MRP.</p>
           </Link>
         </section>
