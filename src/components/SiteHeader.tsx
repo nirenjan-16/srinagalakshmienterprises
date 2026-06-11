@@ -33,7 +33,7 @@ export function SiteHeader() {
           <img
             src={logoAsset.url}
             alt="Sri Nagalakshmi Enterprises"
-            className="h-16 w-16 shrink-0 rounded-xl bg-white/95 p-1.5 shadow-md ring-1 ring-white/30 transition-shadow duration-300 group-hover:shadow-[var(--shadow-glow)] md:h-[72px] md:w-[72px]"
+            className="h-20 w-20 shrink-0 rounded-xl bg-white/95 p-1.5 shadow-md ring-1 ring-white/30 transition-shadow duration-300 group-hover:shadow-[var(--shadow-glow)] md:h-24 md:w-24"
           />
         </Link>
 
