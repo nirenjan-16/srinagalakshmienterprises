@@ -105,3 +105,11 @@ function Dashboard() {
     </div>
   );
 }
+
+/* Hide Lovable badge */
+[data-lovable-badge],
+iframe[src*="lovable"],
+#lovable-badge {
+  display: none !important;
+  visibility: hidden !important;
+}
