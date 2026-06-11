@@ -59,7 +59,7 @@ function LoginPage() {
           <img
             src={logoAsset.url}
             alt="Sri Nagalakshmi Enterprises"
-            className="mb-4 h-36 w-36 drop-shadow-xl"
+            className="mb-4 h-44 w-44 drop-shadow-xl"
           />
           <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
             FMCG Distributor — OrderDesk
