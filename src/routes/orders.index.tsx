@@ -57,7 +57,7 @@ function OrdersPage() {
     const { data } = await supabase
       .from("orders")
       .select(
-        "id, order_number, customer_name, to_number, phone, order_date, status, total_amount, delivered_at, cancelled_at, order_items(product_name, unit_type, quantity, rate, amount)",
+        "id, order_number, customer_name, to_number, phone, order_date, status, total_amount, delivered_at, cancelled_at, order_items(id, product_id, product_name, unit_type, quantity, rate, amount)",
       )
       .in("status", ["Pending", "Confirmed"])
       .order("created_at", { ascending: false });
