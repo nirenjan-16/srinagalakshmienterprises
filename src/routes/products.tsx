@@ -157,14 +157,20 @@ function ProductsPage() {
           });
           const name = String(norm.name ?? "").trim();
           if (!name) return null;
-          const defaultMrp = Number(norm.default_mrp ?? norm.pack_mrp ?? 0) || 0;
+          // box_mrp is required — also accept "box_price"
+          const boxMrpRaw = norm.box_mrp ?? norm.box_price;
+          if (boxMrpRaw === "" || boxMrpRaw == null) return null;
+          const boxMrp = Number(boxMrpRaw);
+          if (!Number.isFinite(boxMrp)) return null;
+          // pack_mrp / default_mrp optional
+          const packRaw = norm.default_mrp ?? norm.pack_mrp;
+          const defaultMrp = packRaw === "" || packRaw == null ? 0 : Number(packRaw) || 0;
           const boxSize = norm.box_size === "" || norm.box_size == null ? null : Number(norm.box_size) || null;
-          const boxMrp = norm.box_mrp === "" || norm.box_mrp == null ? null : Number(norm.box_mrp) || null;
           return { name, default_mrp: defaultMrp, box_size: boxSize, box_mrp: boxMrp };
         })
         .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number | null } => r !== null);
       if (rows.length === 0) {
-        alert("No valid rows found. Required column: name (default_mrp, box_size and box_mrp are optional).");
+        alert("No valid rows found. Required columns: name and box_mrp (or box_price). Optional: pack_mrp, box_size.");
         return;
       }
       setUploadPreview({ rows, fileName: file.name });
