@@ -59,6 +59,32 @@ function ProductsPage() {
   >(null);
   const [uploadResult, setUploadResult] = useState<{ success: number; errors: number; messages: string[] } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [fetchingImages, setFetchingImages] = useState<{ done: number; total: number } | null>(null);
+
+  const fetchMissingImages = async () => {
+    const missing = products.filter((p) => !p.image_url);
+    if (missing.length === 0) {
+      alert("All products already have images.");
+      return;
+    }
+    if (!confirm(`Fetch images for ${missing.length} product(s)? This may take a while.`)) return;
+    setFetchingImages({ done: 0, total: missing.length });
+    let done = 0;
+    for (const p of missing) {
+      try {
+        const res = await fetchImage({ data: { query: `${p.name} product pack` } });
+        if (res?.url) {
+          await supabase.from("products").update({ image_url: res.url }).eq("id", p.id);
+        }
+      } catch {
+        /* skip */
+      }
+      done += 1;
+      setFetchingImages({ done, total: missing.length });
+    }
+    setFetchingImages(null);
+    load();
+  };
 
   const load = async () => {
     setLoading(true);
@@ -150,27 +176,36 @@ function ProductsPage() {
       const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
       const rows = raw
         .map((r) => {
-          // Be tolerant of casing / spaces in headers
+          // Be tolerant of casing / spaces / punctuation in headers
           const norm: Record<string, any> = {};
           Object.keys(r).forEach((k) => {
-            norm[k.trim().toLowerCase().replace(/\s+/g, "_")] = r[k];
+            norm[k.trim().toLowerCase().replace(/[\s.\-/]+/g, "_")] = r[k];
           });
-          const name = String(norm.name ?? "").trim();
+          const name = String(norm.name ?? norm.product ?? norm.product_name ?? norm.item ?? "").trim();
           if (!name) return null;
-          // box_mrp is required — also accept "box_price"
-          const boxMrpRaw = norm.box_mrp ?? norm.box_price;
+          // box_mrp is required — accept many common header variants
+          const boxMrpRaw =
+            norm.box_mrp ??
+            norm.box_price ??
+            norm.boxprice ??
+            norm.boxmrp ??
+            norm.mrp ??
+            norm.price ??
+            norm.rate ??
+            norm.amount;
           if (boxMrpRaw === "" || boxMrpRaw == null) return null;
           const boxMrp = Number(boxMrpRaw);
           if (!Number.isFinite(boxMrp)) return null;
           // pack_mrp / default_mrp optional
-          const packRaw = norm.default_mrp ?? norm.pack_mrp;
+          const packRaw = norm.default_mrp ?? norm.pack_mrp ?? norm.pack_price;
           const defaultMrp = packRaw === "" || packRaw == null ? 0 : Number(packRaw) || 0;
-          const boxSize = norm.box_size === "" || norm.box_size == null ? null : Number(norm.box_size) || null;
+          const boxSizeRaw = norm.box_size ?? norm.packs_per_box ?? norm.qty ?? norm.quantity;
+          const boxSize = boxSizeRaw === "" || boxSizeRaw == null ? null : Number(boxSizeRaw) || null;
           return { name, default_mrp: defaultMrp, box_size: boxSize, box_mrp: boxMrp };
         })
         .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number } => r !== null);
       if (rows.length === 0) {
-        alert("No valid rows found. Required columns: name and box_mrp (or box_price). Optional: pack_mrp, box_size.");
+        alert("No valid rows found. Required: name and a price column (box_mrp / box_price / mrp / price). Optional: pack_mrp, box_size.");
         return;
       }
       setUploadPreview({ rows, fileName: file.name });
@@ -215,20 +250,33 @@ function ProductsPage() {
           >
             Products
           </h1>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-            <Upload className="h-4 w-4" />
-            Upload Products
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFilePick(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchMissingImages}
+              disabled={fetchingImages !== null || loading}
+              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+            >
+              <ImageIcon className="h-4 w-4" />
+              {fetchingImages
+                ? `Fetching ${fetchingImages.done}/${fetchingImages.total}…`
+                : "Fetch missing images"}
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+              <Upload className="h-4 w-4" />
+              Upload Products
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFilePick(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
         </div>
 
         {uploadResult && (

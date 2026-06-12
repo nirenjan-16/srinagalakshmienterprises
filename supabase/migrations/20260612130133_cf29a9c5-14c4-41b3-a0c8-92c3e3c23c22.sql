@@ -1,0 +1,1 @@
+UPDATE public.products SET box_mrp = default_mrp, default_mrp = 0 WHERE box_mrp IS NULL AND default_mrp > 0;
