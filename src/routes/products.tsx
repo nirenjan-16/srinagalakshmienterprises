@@ -59,6 +59,32 @@ function ProductsPage() {
   >(null);
   const [uploadResult, setUploadResult] = useState<{ success: number; errors: number; messages: string[] } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [fetchingImages, setFetchingImages] = useState<{ done: number; total: number } | null>(null);
+
+  const fetchMissingImages = async () => {
+    const missing = products.filter((p) => !p.image_url);
+    if (missing.length === 0) {
+      alert("All products already have images.");
+      return;
+    }
+    if (!confirm(`Fetch images for ${missing.length} product(s)? This may take a while.`)) return;
+    setFetchingImages({ done: 0, total: missing.length });
+    let done = 0;
+    for (const p of missing) {
+      try {
+        const res = await fetchImage({ data: { query: `${p.name} product pack` } });
+        if (res?.url) {
+          await supabase.from("products").update({ image_url: res.url }).eq("id", p.id);
+        }
+      } catch {
+        /* skip */
+      }
+      done += 1;
+      setFetchingImages({ done, total: missing.length });
+    }
+    setFetchingImages(null);
+    load();
+  };
 
   const load = async () => {
     setLoading(true);
