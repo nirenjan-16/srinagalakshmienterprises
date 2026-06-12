@@ -250,20 +250,33 @@ function ProductsPage() {
           >
             Products
           </h1>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-            <Upload className="h-4 w-4" />
-            Upload Products
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFilePick(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchMissingImages}
+              disabled={fetchingImages !== null || loading}
+              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+            >
+              <ImageIcon className="h-4 w-4" />
+              {fetchingImages
+                ? `Fetching ${fetchingImages.done}/${fetchingImages.total}…`
+                : "Fetch missing images"}
+            </button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+              <Upload className="h-4 w-4" />
+              Upload Products
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFilePick(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
         </div>
 
         {uploadResult && (
