@@ -426,16 +426,16 @@ function EditOrderModal({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Labeled label="Customer Name *">
-            <input className="modal-input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <input className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
           </Labeled>
           <Labeled label="TO Number">
-            <input className="modal-input" value={toNumber} onChange={(e) => setToNumber(e.target.value)} />
+            <input className="input" value={toNumber} onChange={(e) => setToNumber(e.target.value)} />
           </Labeled>
           <Labeled label="Phone">
-            <input className="modal-input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Labeled>
           <Labeled label="Date">
-            <input type="date" className="modal-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+            <input type="date" className="input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
           </Labeled>
         </div>
 
@@ -472,7 +472,7 @@ function EditOrderModal({
                           : {}),
                       });
                     }}
-                    className="modal-input"
+                    className="input"
                   />
                   <datalist id={`edit-products-${line.key}`}>
                     {products.map((p) => (
@@ -486,7 +486,7 @@ function EditOrderModal({
                   placeholder="Qty"
                   value={line.quantity}
                   onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                  className="modal-input"
+                  className="input"
                 />
                 <input
                   type="number"
@@ -494,7 +494,7 @@ function EditOrderModal({
                   placeholder="Rate"
                   value={line.rate}
                   onChange={(e) => updateLine(line.key, { rate: e.target.value })}
-                  className="modal-input"
+                  className="input"
                 />
                 <div className="self-center px-2 text-sm">
                   ₹{((parseFloat(line.quantity) || 0) * (parseFloat(line.rate) || 0)).toFixed(2)}
