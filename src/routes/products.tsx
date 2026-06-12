@@ -55,7 +55,7 @@ function ProductsPage() {
   const [searching, setSearching] = useState(false);
   const [uploadPreview, setUploadPreview] = useState<
     | null
-    | { rows: Array<{ name: string; default_mrp: number; box_size: number | null; box_mrp: number | null }>; fileName: string }
+    | { rows: Array<{ name: string; default_mrp: number; box_size: number | null; box_mrp: number }>; fileName: string }
   >(null);
   const [uploadResult, setUploadResult] = useState<{ success: number; errors: number; messages: string[] } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -168,7 +168,7 @@ function ProductsPage() {
           const boxSize = norm.box_size === "" || norm.box_size == null ? null : Number(norm.box_size) || null;
           return { name, default_mrp: defaultMrp, box_size: boxSize, box_mrp: boxMrp };
         })
-        .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number | null } => r !== null);
+        .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number } => r !== null);
       if (rows.length === 0) {
         alert("No valid rows found. Required columns: name and box_mrp (or box_price). Optional: pack_mrp, box_size.");
         return;
