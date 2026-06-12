@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth";
-import logoAsset from "@/assets/sri-nagalakshmi-logo.svg.asset.json";
 
 const navLinks = [
   { to: "/", label: "Dashboard" },
@@ -28,13 +27,17 @@ export function SiteHeader() {
         <Link
           to="/"
           aria-label="Sri Nagalakshmi Enterprises — Home"
-          className="group flex items-center gap-3 transition-transform duration-300 hover:scale-[1.02]"
+          className="group flex flex-col leading-tight transition-transform duration-300 hover:scale-[1.01]"
         >
-          <img
-            src={logoAsset.url}
-            alt="Sri Nagalakshmi Enterprises"
-            className="h-20 w-20 shrink-0 rounded-xl bg-white/95 p-1.5 shadow-md ring-1 ring-white/30 transition-shadow duration-300 group-hover:shadow-[var(--shadow-glow)] md:h-24 md:w-24"
-          />
+          <span
+            className="text-xl font-semibold tracking-wide md:text-2xl"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            Sri Nagalakshmi Enterprises
+          </span>
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-white/75 md:text-sm">
+            FMCG Distributor
+          </span>
         </Link>
 
         <nav className="flex flex-wrap items-center gap-1 text-sm font-medium">
