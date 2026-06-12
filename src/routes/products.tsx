@@ -150,27 +150,36 @@ function ProductsPage() {
       const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
       const rows = raw
         .map((r) => {
-          // Be tolerant of casing / spaces in headers
+          // Be tolerant of casing / spaces / punctuation in headers
           const norm: Record<string, any> = {};
           Object.keys(r).forEach((k) => {
-            norm[k.trim().toLowerCase().replace(/\s+/g, "_")] = r[k];
+            norm[k.trim().toLowerCase().replace(/[\s.\-/]+/g, "_")] = r[k];
           });
-          const name = String(norm.name ?? "").trim();
+          const name = String(norm.name ?? norm.product ?? norm.product_name ?? norm.item ?? "").trim();
           if (!name) return null;
-          // box_mrp is required — also accept "box_price"
-          const boxMrpRaw = norm.box_mrp ?? norm.box_price;
+          // box_mrp is required — accept many common header variants
+          const boxMrpRaw =
+            norm.box_mrp ??
+            norm.box_price ??
+            norm.boxprice ??
+            norm.boxmrp ??
+            norm.mrp ??
+            norm.price ??
+            norm.rate ??
+            norm.amount;
           if (boxMrpRaw === "" || boxMrpRaw == null) return null;
           const boxMrp = Number(boxMrpRaw);
           if (!Number.isFinite(boxMrp)) return null;
           // pack_mrp / default_mrp optional
-          const packRaw = norm.default_mrp ?? norm.pack_mrp;
+          const packRaw = norm.default_mrp ?? norm.pack_mrp ?? norm.pack_price;
           const defaultMrp = packRaw === "" || packRaw == null ? 0 : Number(packRaw) || 0;
-          const boxSize = norm.box_size === "" || norm.box_size == null ? null : Number(norm.box_size) || null;
+          const boxSizeRaw = norm.box_size ?? norm.packs_per_box ?? norm.qty ?? norm.quantity;
+          const boxSize = boxSizeRaw === "" || boxSizeRaw == null ? null : Number(boxSizeRaw) || null;
           return { name, default_mrp: defaultMrp, box_size: boxSize, box_mrp: boxMrp };
         })
         .filter((r): r is { name: string; default_mrp: number; box_size: number | null; box_mrp: number } => r !== null);
       if (rows.length === 0) {
-        alert("No valid rows found. Required columns: name and box_mrp (or box_price). Optional: pack_mrp, box_size.");
+        alert("No valid rows found. Required: name and a price column (box_mrp / box_price / mrp / price). Optional: pack_mrp, box_size.");
         return;
       }
       setUploadPreview({ rows, fileName: file.name });
