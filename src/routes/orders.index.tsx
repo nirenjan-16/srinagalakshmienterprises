@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Download, Trash2, Archive, Search, Pencil } from "lucide-react";
+import { Download, Trash2, Archive, Search, Pencil, Plus } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,16 @@ export const Route = createFileRoute("/orders/")({
   ),
 });
 
+interface OrderItemRow {
+  id?: string;
+  product_id?: string | null;
+  product_name: string;
+  unit_type: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
 interface OrderRow {
   id: string;
   order_number: string;
@@ -26,13 +36,7 @@ interface OrderRow {
   total_amount: number;
   delivered_at: string | null;
   cancelled_at: string | null;
-  order_items: Array<{
-    product_name: string;
-    unit_type: string;
-    quantity: number;
-    rate: number;
-    amount: number;
-  }>;
+  order_items: OrderItemRow[];
 }
 
 interface EditModal {
@@ -53,7 +57,7 @@ function OrdersPage() {
     const { data } = await supabase
       .from("orders")
       .select(
-        "id, order_number, customer_name, to_number, phone, order_date, status, total_amount, delivered_at, cancelled_at, order_items(product_name, unit_type, quantity, rate, amount)",
+        "id, order_number, customer_name, to_number, phone, order_date, status, total_amount, delivered_at, cancelled_at, order_items(id, product_id, product_name, unit_type, quantity, rate, amount)",
       )
       .in("status", ["Pending", "Confirmed"])
       .order("created_at", { ascending: false });
@@ -278,6 +282,16 @@ function OrdersPage() {
 }
 
 // ─── Edit Order Modal ───────────────────────────────────────────────────────
+interface EditableLine {
+  key: string;
+  id?: string;
+  product_id?: string | null;
+  product_name: string;
+  unit_type: string;
+  quantity: string;
+  rate: string;
+}
+
 function EditOrderModal({
   order,
   onClose,
@@ -291,76 +305,217 @@ function EditOrderModal({
   const [toNumber, setToNumber] = useState(order.to_number ?? "");
   const [phone, setPhone] = useState(order.phone ?? "");
   const [orderDate, setOrderDate] = useState(order.order_date);
+  const [products, setProducts] = useState<Array<{ id: string; name: string; default_mrp: number; box_mrp: number | null }>>([]);
+  const [lines, setLines] = useState<EditableLine[]>(
+    order.order_items.map((it) => ({
+      key: it.id ?? Math.random().toString(36).slice(2),
+      id: it.id,
+      product_id: it.product_id ?? null,
+      product_name: it.product_name,
+      unit_type: it.unit_type || "Box",
+      quantity: String(it.quantity),
+      rate: String(it.rate),
+    })),
+  );
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("products")
+      .select("id, name, default_mrp, box_mrp")
+      .order("name")
+      .then(({ data }) => setProducts((data as any) ?? []));
+  }, []);
+
+  const total = lines.reduce(
+    (s, l) => s + (parseFloat(l.quantity) || 0) * (parseFloat(l.rate) || 0),
+    0,
+  );
+
+  const updateLine = (key: string, patch: Partial<EditableLine>) =>
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+
+  const addLine = () =>
+    setLines((prev) => [
+      ...prev,
+      {
+        key: Math.random().toString(36).slice(2),
+        product_id: null,
+        product_name: "",
+        unit_type: "Box",
+        quantity: "1",
+        rate: "",
+      },
+    ]);
+
+  const removeLine = (key: string) => {
+    setLines((prev) => {
+      const target = prev.find((l) => l.key === key);
+      if (target?.id) setRemovedIds((r) => [...r, target.id!]);
+      return prev.filter((l) => l.key !== key);
+    });
+  };
 
   const handleSave = async () => {
     if (!customerName.trim()) {
       alert("Customer name is required.");
       return;
     }
+    const valid = lines.filter(
+      (l) => l.product_name.trim() && parseFloat(l.quantity) > 0,
+    );
+    if (valid.length === 0) {
+      alert("Order needs at least one line item with a name and quantity.");
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase
+
+    // Order header
+    const { error: ordErr } = await supabase
       .from("orders")
       .update({
         customer_name: customerName.trim(),
         to_number: toNumber.trim() || null,
         phone: phone.trim() || null,
         order_date: orderDate,
+        total_amount: total,
       })
       .eq("id", order.id);
-    setSaving(false);
-    if (error) {
-      alert("Failed to save: " + error.message);
+    if (ordErr) {
+      setSaving(false);
+      alert("Failed to save order: " + ordErr.message);
       return;
     }
+
+    // Delete removed line items
+    if (removedIds.length > 0) {
+      await supabase.from("order_items").delete().in("id", removedIds);
+    }
+
+    // Upsert remaining: update existing, insert new
+    for (const l of valid) {
+      const q = parseFloat(l.quantity) || 0;
+      const r = parseFloat(l.rate) || 0;
+      const payload = {
+        order_id: order.id,
+        product_id: l.product_id || null,
+        product_name: l.product_name.trim(),
+        unit_type: l.unit_type || "Box",
+        quantity: q,
+        rate: r,
+        amount: q * r,
+      };
+      if (l.id) {
+        await supabase.from("order_items").update(payload).eq("id", l.id);
+      } else {
+        await supabase.from("order_items").insert(payload);
+      }
+    }
+
+    setSaving(false);
     onSaved();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8">
+      <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-xl">
         <h2 className="mb-4 text-lg font-semibold">
           Edit Order <span className="font-mono text-sm text-muted-foreground">{order.order_number}</span>
         </h2>
 
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">Customer Name *</label>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">TO Number</label>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              value={toNumber}
-              onChange={(e) => setToNumber(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">Phone</label>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">Date</label>
-            <input
-              type="date"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Labeled label="Customer Name *">
+            <input className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+          </Labeled>
+          <Labeled label="TO Number">
+            <input className="input" value={toNumber} onChange={(e) => setToNumber(e.target.value)} />
+          </Labeled>
+          <Labeled label="Phone">
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </Labeled>
+          <Labeled label="Date">
+            <input type="date" className="input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+          </Labeled>
+        </div>
 
-          <p className="text-xs text-muted-foreground">
-            * To edit line items, delete this order and create a new one.
-          </p>
+        <div className="mt-6">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Line Items</h3>
+            <button
+              type="button"
+              onClick={addLine}
+              className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1 text-xs hover:bg-accent"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add item
+            </button>
+          </div>
+          <div className="space-y-2">
+            {lines.map((line) => (
+              <div
+                key={line.key}
+                className="grid grid-cols-1 gap-2 rounded-lg border border-border p-2 md:grid-cols-[2fr_1fr_1fr_auto_auto]"
+              >
+                <div>
+                  <input
+                    list={`edit-products-${line.key}`}
+                    placeholder="Product"
+                    value={line.product_name}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const match = products.find((p) => p.name === val);
+                      updateLine(line.key, {
+                        product_name: val,
+                        product_id: match?.id ?? null,
+                        ...(match
+                          ? { rate: match.box_mrp != null ? String(match.box_mrp) : String(match.default_mrp) }
+                          : {}),
+                      });
+                    }}
+                    className="input"
+                  />
+                  <datalist id={`edit-products-${line.key}`}>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.name} />
+                    ))}
+                  </datalist>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Qty"
+                  value={line.quantity}
+                  onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
+                  className="input"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Rate"
+                  value={line.rate}
+                  onChange={(e) => updateLine(line.key, { rate: e.target.value })}
+                  className="input"
+                />
+                <div className="self-center px-2 text-sm">
+                  ₹{((parseFloat(line.quantity) || 0) * (parseFloat(line.rate) || 0)).toFixed(2)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeLine(line.key)}
+                  className="self-center rounded-md p-1.5 text-destructive hover:bg-accent"
+                  aria-label="Remove"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {lines.length === 0 && (
+              <p className="text-xs text-muted-foreground">No items. Click "Add item" to start.</p>
+            )}
+          </div>
+          <div className="mt-3 flex justify-end border-t border-border pt-3 text-sm font-semibold">
+            Total: ₹{total.toFixed(2)}
+          </div>
         </div>
 
         <div className="mt-6 flex gap-2">
@@ -380,5 +535,14 @@ function EditOrderModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium uppercase text-muted-foreground">{label}</span>
+      {children}
+    </label>
   );
 }
