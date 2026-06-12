@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Download, Trash2, Archive, Search, Pencil } from "lucide-react";
+import { Download, Trash2, Archive, Search, Pencil, Plus } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,16 @@ export const Route = createFileRoute("/orders/")({
   ),
 });
 
+interface OrderItemRow {
+  id?: string;
+  product_id?: string | null;
+  product_name: string;
+  unit_type: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
 interface OrderRow {
   id: string;
   order_number: string;
@@ -26,13 +36,7 @@ interface OrderRow {
   total_amount: number;
   delivered_at: string | null;
   cancelled_at: string | null;
-  order_items: Array<{
-    product_name: string;
-    unit_type: string;
-    quantity: number;
-    rate: number;
-    amount: number;
-  }>;
+  order_items: OrderItemRow[];
 }
 
 interface EditModal {
