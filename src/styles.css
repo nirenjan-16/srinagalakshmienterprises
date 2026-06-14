@@ -165,3 +165,12 @@
     box-shadow: 0 0 0 2px var(--color-brand);
   }
 }
+
+#lovable-badge,
+[data-lovable-badge],
+aside[aria-label="Edit with Lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
