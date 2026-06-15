@@ -338,9 +338,9 @@ function ProductsPage() {
                 <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Pack MRP</th>
-                    <th className="px-3 py-2">Box Size</th>
                     <th className="px-3 py-2">Box MRP</th>
+                    <th className="px-3 py-2">Box Size</th>
+                    <th className="px-3 py-2">Pack MRP</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -519,10 +519,11 @@ function ProductsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 font-medium">{p.name}</td>
-                    <td className="px-4 py-3">₹{Number(p.default_mrp).toFixed(2)}</td>
-                    <td className="px-4 py-3">{p.box_size ?? "—"}</td>
-                    <td className="px-4 py-3">{p.box_mrp ? `₹${Number(p.box_mrp).toFixed(2)}` : "—"}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3">
+  {p.box_mrp ? `₹${Number(p.box_mrp).toFixed(2)}` : "—"}
+</td>
+<td className="px-4 py-3">{p.box_size ?? "—"}</td>
+<td className="px-4 py-3">₹{Number(p.default_mrp).toFixed(2)}</td>                    <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => handleEdit(p)}
                         className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-brand hover:bg-accent"
