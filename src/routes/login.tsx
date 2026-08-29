@@ -1,11 +1,22 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { signIn } from "@/lib/auth";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
+import { signInAccount } from "@/lib/auth.functions";
+import { startSession } from "@/lib/auth";
+import { usernameSchema } from "@/lib/auth.schemas";
 import logoAsset from "@/assets/sri-nagalakshmi-logo.svg.asset.json";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "Sign in — Sri Nagalakshmi Enterprises OrderDesk" }],
+    meta: [
+      { title: "Sign in — Sri Nagalakshmi Enterprises OrderDesk" },
+      { name: "description", content: "Sign in to Sri Nagalakshmi Enterprises OrderDesk." },
+      { property: "og:title", content: "Sign in — Sri Nagalakshmi Enterprises OrderDesk" },
+      { property: "og:description", content: "Sign in to Sri Nagalakshmi Enterprises OrderDesk." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
   component: LoginPage,
 });
@@ -16,14 +27,22 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const signIn = useServerFn(signInAccount);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      if (await signIn(username, password)) {
-        navigate({ to: "/" });
+      const parsedUsername = usernameSchema.safeParse(username);
+      if (!parsedUsername.success || !password) {
+        setError("Enter your username and password.");
+        return;
+      }
+      const result = await signIn({ data: { username: parsedUsername.data, password } });
+      if (result.ok) {
+        startSession(result.username);
+        await navigate({ to: "/" });
       } else {
         setError("Invalid username or password.");
       }
@@ -93,19 +112,22 @@ function LoginPage() {
               {error}
             </p>
           )}
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg py-2.5 text-sm font-semibold text-brand-foreground transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glow)] active:translate-y-0 disabled:opacity-60"
+            className="h-auto w-full rounded-lg py-2.5 text-sm font-semibold text-brand-foreground transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glow)] active:translate-y-0"
             style={{ backgroundImage: "var(--gradient-brand)" }}
           >
             {loading ? "Signing in…" : "Sign in"}
-          </button>
+          </Button>
         </form>
 
-        <p className="mt-5 text-center text-xs text-muted-foreground">
-          Contact your administrator if you cannot log in.
-        </p>
+        <div className="mt-5 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+          <Link to="/reset-password" className="font-medium text-primary underline-offset-4 hover:underline">
+            Forgot password?
+          </Link>
+          <p>Use a recovery code generated in Settings.</p>
+        </div>
       </div>
     </div>
   );
