@@ -1,50 +1,45 @@
-## Goal
-Get this TanStack Start app deploying successfully on Vercel.
+# Secure no-email password recovery
 
-## Why the current build fails
-- `vercel.json` is configured for a **static SPA** (`outputDirectory: dist/client`, catch-all rewrite to `/`). This is wrong for this project — it's a **TanStack Start SSR** app with server functions, a custom `src/server.ts` Worker entry, Supabase auth middleware, and a `nitro` dev dep targeting Cloudflare Workers.
-- During Vercel's build, `vite build` runs but fails at the TanStack Router plugin step because the build pipeline is misconfigured for the target. The route-tree error in the screenshot is downstream of that.
-- Even if the build succeeded, a static deploy would have **no runtime** for `createServerFn` calls, the Supabase auth middleware, or SSR — the app would white-screen at runtime.
+## User-facing result
 
-## Heads-up on tradeoffs
-This stack (`@lovable.dev/vite-tanstack-config`, `src/server.ts` Worker entry, the SSR error wrapper) is tuned for Lovable's Cloudflare-based hosting. Moving to Vercel means:
-- The Lovable preview/published URL on `lovable.app` will keep working — but Vercel becomes a second, parallel deployment you maintain separately.
-- Future Lovable template/config updates may need re-merging against the Vercel changes.
-- The simpler path remains using Lovable's built-in Publish + custom domain. I'll proceed with Vercel since you asked, but wanted to flag this.
+- Add a **Forgot password?** action to the username login screen.
+- Add a public **Reset password** route that accepts the username, a one-time recovery code, a new password, and confirmation.
+- Add a signed-in **Generate recovery code** action in Settings. It requires the current password, displays the code once, and clearly tells the user to store it safely.
+- Keep username-based sign-in and the existing local session behavior. No email provider or email address is required.
+- Show generic failure messages so the login and reset screens do not reveal whether a username exists or whether a recovery code was valid.
 
-## Plan
+## Secure behavior
 
-### 1. Switch the server target to Vercel
-- Replace `src/server.ts` (Cloudflare Worker `export default { fetch }` shape) with a Vercel-compatible Node entry that wraps `@tanstack/react-start/server-entry`.
-- Update `vite.config.ts` so `@lovable.dev/vite-tanstack-config` builds for a Node server target instead of Cloudflare Workers (`tanstackStart.server.preset: "vercel"` if supported by the installed plugin version; otherwise drop the custom entry and let TanStack Start's default Vercel preset emit `.vercel/output/`).
-- Keep the SSR error capture + `renderErrorPage` wrapper, but adapted to the Node request/response shape.
+- Verify usernames, current passwords, recovery codes, and new-password rules with shared Zod validation on both client and server.
+- Move sign-in, credential updates, recovery-code generation, and password reset into server functions. The browser will no longer select or receive `password_hash` values.
+- Generate recovery codes with cryptographically secure randomness; store only a bcrypt/hash-derived value in the database.
+- Make each recovery code single-use and short-lived, invalidate it immediately after a successful reset, and invalidate older codes when a new one is generated.
+- Use timing-safe comparisons where a secret is compared directly, rate-limit failed recovery attempts, and avoid logging passwords or recovery codes.
+- Preserve the current-password requirement for ordinary signed-in password changes.
 
-### 2. Rewrite `vercel.json`
-Replace the static-SPA config with one that points Vercel at the TanStack Start build output:
-```json
-{
-  "buildCommand": "bun run build",
-  "outputDirectory": ".vercel/output",
-  "framework": null
-}
-```
-(Exact shape depends on which preset the plugin emits — Build Output API v3 vs a Node server. I'll confirm by inspecting the plugin and pick the matching config.)
+## Database migration
 
-### 3. Environment variables on Vercel (you do this)
-In Vercel → Project → Settings → Environment Variables, add (for **Production**, **Preview**, **Development**):
-- Client-visible: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`
-- Server-only: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `LOVABLE_API_KEY`
+- Extend `public.users` with the minimum recovery fields: a hashed recovery-code value, expiry timestamp, used timestamp, and failed-attempt/lockout tracking as needed by the server flow.
+- Add indexes only where they support the reset lookup/expiry cleanup; do not add a plaintext recovery-code column.
+- Replace the current broad public access pattern for `users` with policies/grants that prevent anonymous reads of password and recovery hashes while still allowing the server-side auth functions to operate safely.
+- Include explicit grants in the same migration and keep existing user IDs, usernames, and password hashes intact.
 
-Values for the `VITE_*` vars are already in your `.env`; the service role key and Lovable API key are managed by Lovable Cloud — I'll surface the values you need to copy in.
+## Application updates
 
-### 4. Verify
-- `bun run build` locally (in Lovable's sandbox) to confirm the build succeeds and emits a Vercel-compatible output dir.
-- Confirm route tree generates (the file already exists at `src/routeTree.gen.ts`, so this should resolve once the build pipeline is correct).
-- After you redeploy on Vercel, test: `/login` loads, login works (auth middleware), dashboard data fetches (server functions).
+- Add a thin client-safe auth functions module and a server-only implementation path that queries the database and hashes/verifies secrets.
+- Update login to call the server sign-in function and retain the existing localStorage session only after server verification.
+- Update Settings to call the authenticated credential-update flow and add recovery-code generation with a one-time reveal state.
+- Add the reset route before linking to it, with accessible form labels, password confirmation, loading/error/success states, and navigation back to login after success.
+- Keep route metadata specific for `/login`, `/settings`, and `/reset-password`.
+- Do not expose service-role credentials or recovery secrets in client code.
 
-## Out of scope
-- No changes to UI, routes, auth logic, or Lovable Cloud schema.
-- No changes to the Lovable-hosted deployment — it will keep working in parallel.
+## Verification
 
-## Open question before I start
-The `@lovable.dev/vite-tanstack-config` plugin (v2.3.2) is opinionated toward Cloudflare. If it doesn't expose a Vercel preset, the cleanest fix is to **replace it** with a vanilla `@tanstack/react-start/plugin` setup configured for Vercel — a larger but more reliable change. I'll inspect the installed plugin first; if no Vercel preset exists, I'll flag it before swapping plugins.
+- Apply the migration through the database migration workflow.
+- Verify the normal login and signed-in password change paths.
+- Verify recovery-code generation, successful single-use reset, rejection of reuse/expiry/wrong code, password confirmation validation, and generic error messages.
+- Check the production build and the live preview for blank-screen, route-generation, console, and network errors.
+
+## Important limitation
+
+With no email or second delivery channel, a forgotten password can only be recovered if the user previously generated and securely stored the recovery code, or an authorized system operator performs an out-of-band recovery. The app will not display or regenerate an old code after it is lost.
