@@ -148,18 +148,33 @@ export type Database = {
           created_at: string | null
           id: string
           password_hash: string
+          recovery_code_expires_at: string | null
+          recovery_code_hash: string | null
+          recovery_code_used_at: string | null
+          recovery_failed_attempts: number
+          recovery_locked_until: string | null
           username: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           password_hash: string
+          recovery_code_expires_at?: string | null
+          recovery_code_hash?: string | null
+          recovery_code_used_at?: string | null
+          recovery_failed_attempts?: number
+          recovery_locked_until?: string | null
           username: string
         }
         Update: {
           created_at?: string | null
           id?: string
           password_hash?: string
+          recovery_code_expires_at?: string | null
+          recovery_code_hash?: string | null
+          recovery_code_used_at?: string | null
+          recovery_failed_attempts?: number
+          recovery_locked_until?: string | null
           username?: string
         }
         Relationships: []
