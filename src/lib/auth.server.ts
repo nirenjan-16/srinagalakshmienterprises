@@ -113,7 +113,7 @@ export async function resetPasswordWithCode(
     return { ok: false as const };
   }
 
-  const { data: updatedUser, error: updateError } = await supabaseAdmin
+  const { error: updateError } = await supabaseAdmin
     .from("users")
     .update({
       password_hash: await bcrypt.hash(newPassword, 12),
