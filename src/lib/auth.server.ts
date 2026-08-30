@@ -35,7 +35,8 @@ export async function changeCredentials(input: {
   const updates: { username?: string; password_hash?: string } = {};
   if (input.nextUsername !== input.currentUsername) updates.username = input.nextUsername;
   if (input.newPassword) updates.password_hash = await bcrypt.hash(input.newPassword, 12);
-  if (Object.keys(updates).length === 0) return { ok: true as const, username: input.currentUsername };
+  if (Object.keys(updates).length === 0)
+    return { ok: true as const, username: input.currentUsername };
 
   const { data, error } = await supabaseAdmin
     .from("users")
