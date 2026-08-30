@@ -123,7 +123,10 @@ function LoginPage() {
         </form>
 
         <div className="mt-5 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
-          <Link to="/reset-password" className="font-medium text-primary underline-offset-4 hover:underline">
+          <Link
+            to="/reset-password"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
             Forgot password?
           </Link>
           <p>Use a recovery code generated in Settings.</p>

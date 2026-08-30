@@ -68,7 +68,10 @@ function SettingsPage() {
         },
       });
       if (!result.ok) {
-        setMessage({ kind: "err", text: "Current password is incorrect or the username is unavailable." });
+        setMessage({
+          kind: "err",
+          text: "Current password is incorrect or the username is unavailable.",
+        });
         return;
       }
       updateSessionUsername(result.username);
@@ -108,7 +111,14 @@ function SettingsPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">Current Password</label>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="input" autoComplete="current-password" required />
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="input"
+              autoComplete="current-password"
+              required
+            />
           </div>
 
           <div>
@@ -133,17 +143,24 @@ function SettingsPage() {
           </div>
 
           {message && (
-            <p className={`text-sm ${message.kind === "ok" ? "text-emerald-600" : "text-destructive"}`}>
+            <p
+              className={`text-sm ${message.kind === "ok" ? "text-emerald-600" : "text-destructive"}`}
+            >
               {message.text}
             </p>
           )}
 
-          <Button type="submit" className="bg-brand text-brand-foreground hover:opacity-90">Save changes</Button>
+          <Button type="submit" className="bg-brand text-brand-foreground hover:opacity-90">
+            Save changes
+          </Button>
         </form>
 
         <section className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Recovery access</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Generate a one-time code before you need it. It expires in 30 minutes and is shown only once.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Generate a one-time code before you need it. It expires in 30 minutes and is shown only
+            once.
+          </p>
           <Button
             type="button"
             variant="outline"
@@ -155,7 +172,9 @@ function SettingsPage() {
                 setMessage({ kind: "err", text: "Enter your current password above first." });
                 return;
               }
-              const result = await createRecoveryCode({ data: { username: getCurrentUsername(), currentPassword } });
+              const result = await createRecoveryCode({
+                data: { username: getCurrentUsername(), currentPassword },
+              });
               if (!result.ok) {
                 setMessage({ kind: "err", text: "Current password is incorrect." });
                 return;
@@ -169,9 +188,17 @@ function SettingsPage() {
           </Button>
           {recoveryCode && (
             <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Copy this code now</p>
-              <p className="mt-2 break-all font-mono text-lg font-semibold tracking-wider text-foreground">{recoveryCode}</p>
-              <p className="mt-2 text-xs text-muted-foreground">Expires {recoveryExpiresAt ? new Date(recoveryExpiresAt).toLocaleTimeString() : "soon"}. It cannot be viewed again.</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Copy this code now
+              </p>
+              <p className="mt-2 break-all font-mono text-lg font-semibold tracking-wider text-foreground">
+                {recoveryCode}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Expires{" "}
+                {recoveryExpiresAt ? new Date(recoveryExpiresAt).toLocaleTimeString() : "soon"}. It
+                cannot be viewed again.
+              </p>
             </div>
           )}
         </section>
