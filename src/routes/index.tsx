@@ -19,15 +19,43 @@ export const Route = createFileRoute("/")({
   ),
 });
 
+interface LastActivity {
+  order_number: string;
+  customer_name: string;
+  status: string;
+  updated_at: string;
+}
+
+function formatRelativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diffMs = Date.now() - then;
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return rtf.format(-minutes, "minute");
+  const hours = Math.round(diffMs / 3600000);
+  if (hours < 24) return rtf.format(-hours, "hour");
+  const days = Math.round(diffMs / 86400000);
+  if (days < 7) return rtf.format(-days, "day");
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function Dashboard() {
   const [stats, setStats] = useState({ today: 0, pending: 0, delivered: 0 });
+  const [lastActivity, setLastActivity] = useState<LastActivity | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const [todays, pending, delivered] = await Promise.all([
+      const [todays, pending, delivered, recent] = await Promise.all([
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("order_date", today),
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "Pending"),
         supabase
@@ -36,6 +64,12 @@ function Dashboard() {
           .eq("status", "Delivered")
           .gte("delivered_at", `${today}T00:00:00`)
           .lt("delivered_at", `${today}T23:59:59`),
+        supabase
+          .from("orders")
+          .select("order_number, customer_name, status, updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
       if (!mounted) return;
       setStats({
@@ -43,6 +77,7 @@ function Dashboard() {
         pending: pending.count ?? 0,
         delivered: delivered.count ?? 0,
       });
+      setLastActivity((recent.data as LastActivity | null) ?? null);
       setLoading(false);
     })();
     return () => {
