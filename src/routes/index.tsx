@@ -116,6 +116,54 @@ function Dashboard() {
           <StatCard label="Delivered Today" value={loading ? "…" : stats.delivered} accent="success" />
         </section>
 
+        <section
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-6 py-4 transition-all duration-300 hover:shadow-[var(--shadow-elegant)]"
+          aria-label="Last activity"
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-brand-foreground"
+              style={{ backgroundImage: "var(--gradient-brand)" }}
+              aria-hidden
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Last change
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                {loading || lastActivity === undefined
+                  ? "Checking…"
+                  : lastActivity === null
+                    ? "No activity yet"
+                    : formatRelativeTime(lastActivity.updated_at)}
+              </p>
+            </div>
+          </div>
+          {lastActivity && (
+            <p className="text-sm text-muted-foreground">
+              Order <span className="font-medium text-foreground">{lastActivity.order_number}</span>
+              {" · "}
+              {lastActivity.customer_name}
+              {" · "}
+              <span className="font-medium text-foreground">{lastActivity.status}</span>
+            </p>
+          )}
+        </section>
+
         <section className="mt-10 grid gap-4 sm:grid-cols-2">
           <Link
             to="/orders"
